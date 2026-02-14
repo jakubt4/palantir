@@ -1,112 +1,244 @@
-# Project Palantír: Orbital Telemetry Digital Twin 🛰️👁️
+# Project Palantir: Orbital Telemetry Digital Twin
 
-> *"They were not made by Sauron... They were made by the Noldor in Eldamar... to see far off, and to converse in thought with one another."* — Gandalf on the Palantíri
+> *"They were not made by Sauron... They were made by the Noldor in Eldamar... to see far off, and to converse in thought with one another."* — Gandalf on the Palantiri
 
-## 🚀 About The Project
+## About The Project
 
-Project Palantír is a Proof of Concept (PoC) constructing a "Digital Twin" ground segment environment.
+Project Palantir is a Proof of Concept (PoC) constructing a "Digital Twin" ground segment environment.
 
-It bridges the gap between high-fidelity astrodynamics simulation and operational mission control software. The goal is to demonstrate the integration of complex Java-based physics engines with standardized telemetry protocols used in the space industry.
+It bridges astrodynamics simulation with operational mission control software. Operators ingest real Two-Line Element sets (TLEs) via a REST API, and the system propagates the satellite orbit in real time using SGP4, streaming geodetic telemetry (latitude, longitude, altitude) to a Yamcs mission control instance.
 
-This system simulates a satellite in Low Earth Orbit (similar to the ISS) and streams its real-time position, velocity, and simulated sensor data to a local mission control instance.
+## Architecture
 
-## 🏗️ Architecture (The Eye & The Tower)
+The system is composed of two pillars operating in tandem:
 
-The system is composed of two main pillars operating in tandem:
+- **Physics Engine (port 8080):** A Spring Boot 3.2 application using Orekit 12.2 for SGP4/SDP4 orbit propagation. Accepts TLE uploads via REST, propagates at 1 Hz, and pushes telemetry to Yamcs. Runs on Java 21 with Virtual Threads enabled.
 
-- **The Physics Engine (The Seeing Stone):** A Spring Boot 3.2+ application leveraging the Orekit library. It calculates the precise Keplerian orbit, propagates the state vector in real-time using Java 21 Virtual Threads, and generates synthetic telemetry.
-
-- **Mission Control (The Tower):** A Yamcs instance running in a Docker container. It acts as the ground station, receiving, archiving, and visualizing the incoming telemetry stream via its REST API.
+- **Mission Control (port 8090):** A Yamcs 5.12.2 Docker container with a dedicated `palantir` instance. Receives telemetry via REST, serves a web UI over WebSocket. Defines LOCAL float parameters (`/Palantir/Latitude`, `/Palantir/Longitude`, `/Palantir/Altitude`) via an XTCE Mission Database.
 
 ### Data Flow
 
-```mermaid
-graph LR
-    A["🛰️ Java 21 App\n(Orekit)"]
-    B["📡 Yamcs Server\n(Docker)"]
-    C["🖥️ Mission Control UI\n(Browser)"]
-
-    A -- "JSON / REST" --> B -- "WebSocket" --> C
-
-    style A fill:#2d333b,stroke:#58a6ff,color:#c9d1d9
-    style B fill:#2d333b,stroke:#3fb950,color:#c9d1d9
-    style C fill:#2d333b,stroke:#d29922,color:#c9d1d9
+```
+                  POST /api/orbit/tle
+  Operator ──────────────────────────────► Spring Boot (Orekit SGP4)
+                                                │
+                                          @Scheduled(1s)
+                                          propagate → geodetic
+                                                │
+                                          JSON / REST (batchSet)
+                                                │
+                                                ▼
+                                          Yamcs (Docker :8090)
+                                                │
+                                            WebSocket
+                                                │
+                                                ▼
+                                          Browser UI
 ```
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 | Technology | Purpose |
 |---|---|
-| **Java 21** (LTS) | Core language, utilizing Virtual Threads (Project Loom) for high-throughput telemetry processing |
-| **Spring Boot 3.x** | Application framework and scheduling |
-| **Orekit 12.0** | Astrodynamics and operational space flight dynamics library |
-| **Yamcs** | Mission control system for spacecraft telemetry & commanding |
-| **Docker** | Containerization of the Yamcs server |
-| **Maven** | Dependency management |
+| **Java 21** (LTS) | Core language, Virtual Threads for high-throughput telemetry |
+| **Spring Boot 3.2.5** | Application framework, scheduling, REST API |
+| **Spring Retry** | Resilient Yamcs communication with automatic retries |
+| **Orekit 12.2** | Astrodynamics library — TLE parsing, SGP4/SDP4 propagation |
+| **Yamcs 5.12.2** | Mission control for spacecraft telemetry & commanding |
+| **Yamcs Client 5.12.4** | Java client library for Yamcs API interaction |
+| **Docker / Compose** | Containerization and orchestration of the full stack |
+| **Maven** | Build tool and dependency management |
+| **JaCoCo** | Code coverage reporting |
 
-## ⚡ Getting Started
+## Getting Started
 
 ### Prerequisites
 
 - Java 21 SDK
-- Docker & Docker Compose
+- Docker (with Compose)
 - Maven
 
-### Installation & Setup
+### Option A: Docker Compose (Full Stack)
 
-#### 1. Start Mission Control (Yamcs)
-
-Spin up the Yamcs server using the official quickstart Docker image. It will listen on port 8090.
+The easiest way to run the entire system:
 
 ```bash
-docker run --rm --name yamcs -p 8090:8090 yamcs/yamcs:latest
+docker compose up --build
+```
+
+This builds and starts both the Yamcs mission control and the Spring Boot physics engine. The `palantir-core` service waits for Yamcs to be healthy before starting. Yamcs data is persisted in a named volume (`palantir_yamcs_data`).
+
+### Option B: Manual Setup
+
+#### 1. Build & Start Mission Control (Yamcs)
+
+```bash
+docker build -t palantir-yamcs yamcs/
+docker run --rm --name yamcs -p 8090:8090 palantir-yamcs
 ```
 
 Verify by visiting http://localhost:8090 in your browser.
 
-#### 2. Configure Physics Data (Crucial Step!)
+#### 2. Configure Physics Data
 
-Orekit requires physical data (leap seconds, Earth orientation parameters, gravity models) to function.
+Orekit requires physical data (leap seconds, Earth orientation parameters, planetary ephemerides). The file `src/main/resources/orekit-data.zip` must be present.
 
-1. Download the data archive: `orekit-data-master.zip`
-2. Place the `orekit-data-master.zip` file into the `src/main/resources/` directory of the Spring Boot project.
+If missing, download from https://gitlab.orekit.org/orekit/orekit-data/-/archive/main/orekit-data-main.zip and place it there. The application auto-loads this data at startup via `OrekitConfig`.
 
-> The application is configured to auto-load data from this zip upon startup.
-
-#### 3. Build and Run the Simulation Engine
-
-Navigate to the project root and run:
+#### 3. Build and Run
 
 ```bash
+mvn package
 mvn spring-boot:run
 ```
 
-## 🖥️ Usage / Verification
+On startup, the application initializes the WGS84 Earth model and waits for a TLE:
 
-Once both components are running:
+```
+Earth model initialized — WGS84 ellipsoid, ITRF/IERS-2010
+WAITING_FOR_TLE — No active propagator, awaiting TLE ingestion
+```
 
-1. Check the Spring Boot logs. You should see periodic messages indicating telemetry packets are being sent (e.g., `[ScheduledTask] Sending telemetry for altitude: 408 km`).
-2. Open the Yamcs Web Interface at http://localhost:8090.
-3. Navigate to the **Telemetry** or **Parameters** view.
-4. Observe the live data streaming in from your Java application, visualizing the orbital path of your simulated satellite.
+### 4. Ingest a TLE
 
-## 🔭 Future Improvements
+POST a Two-Line Element set to start propagation:
 
-- [ ] Implementation of CCSDS packet standards instead of raw JSON.
-- [ ] Adding bidirectional communication (Telecommanding) to alter the satellite's orbit.
-- [ ] Deploying the Spring Boot application into a Kubernetes cluster alongside Yamcs.
+```bash
+curl -X POST http://localhost:8080/api/orbit/tle \
+  -H "Content-Type: application/json" \
+  -d '{
+    "satelliteName": "ISS (ZARYA)",
+    "line1": "1 25544U 98067A   24001.50000000  .00016717  00000-0  10270-3 0  9002",
+    "line2": "2 25544  51.6400 208.9163 0006703 130.5360 325.0288 15.49560532999999"
+  }'
+```
 
-## 🤖 Development Methodology
-This project was built using an **AI-augmented workflow** (Claude Code / Copilot).
+Response:
+
+```json
+{
+  "satelliteName": "ISS (ZARYA)",
+  "status": "ACTIVE",
+  "message": "TLE loaded, propagation started"
+}
+```
+
+You can update the TLE at any time by posting again — the propagator swaps atomically.
+
+## Usage
+
+Once a TLE is ingested, the logs show real-time position updates every second:
+
+```
+AOS — Acquired signal for [ISS (ZARYA)], TLE epoch: 2024-01-01T12:00:00Z, propagator: SGP4
+[ISS (ZARYA)] Position — lat=12.34 °, lon=-45.67 °, alt=407.32 km
+```
+
+In the Yamcs Web Interface (http://localhost:8090), navigate to the **Parameters** view and search for `Palantir`. Watch `/Palantir/Latitude`, `/Palantir/Longitude`, and `/Palantir/Altitude` update live.
+
+## REST API
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/orbit/tle` | Ingest a TLE and start/update propagation |
+
+### POST /api/orbit/tle
+
+**Request body:**
+
+```json
+{
+  "satelliteName": "ISS (ZARYA)",
+  "line1": "1 25544U ...",
+  "line2": "2 25544 ..."
+}
+```
+
+**Responses:**
+
+| Status | Condition |
+|---|---|
+| `200 OK` | TLE parsed and propagation started (`"status": "ACTIVE"`) |
+| `400 Bad Request` | Missing/blank satellite name, missing TLE lines, or invalid TLE format (`"status": "REJECTED"`) |
+
+## Project Structure
+
+```
+palantir/
+├── src/main/java/io/github/jakubt4/palantir/
+│   ├── PalantirApplication.java              # Entry point (@EnableScheduling, @EnableRetry)
+│   ├── config/
+│   │   ├── OrekitConfig.java                 # Loads orekit-data.zip at startup
+│   │   └── RestClientConfig.java             # RestClient timeouts (5s connect/read)
+│   ├── controller/
+│   │   └── TleIngestionController.java       # POST /api/orbit/tle endpoint
+│   ├── service/
+│   │   └── OrbitPropagationService.java      # SGP4 propagation, @Scheduled telemetry push
+│   ├── client/
+│   │   └── YamcsTelemetryClient.java         # REST client with @Retryable to Yamcs
+│   └── dto/                                  # Java records (TLE request/response, Yamcs API)
+├── src/test/java/io/github/jakubt4/palantir/
+│   ├── PalantirApplicationTests.java         # Full context load integration test
+│   ├── controller/TleIngestionControllerTest.java  # @WebMvcTest — 3 tests
+│   ├── service/OrbitPropagationServiceTest.java    # @SpringBootTest — 3 tests
+│   ├── client/YamcsTelemetryClientTest.java        # MockRestServiceServer — 2 tests
+│   └── dto/YamcsParameterRequestTest.java          # Pure unit — 2 tests
+├── src/main/resources/
+│   ├── application.yaml                      # Spring Boot config (Virtual Threads, Yamcs URL)
+│   └── orekit-data.zip                       # Orekit physics data
+├── Dockerfile                                # Multi-stage Spring Boot build (Maven + JRE 21)
+├── docker-compose.yaml                       # Full-stack orchestration (Yamcs + Spring Boot)
+├── yamcs/                                    # Custom Yamcs Docker image
+│   ├── Dockerfile                            # Based on yamcs/example-simulation:5.12.2
+│   ├── mdb/palantir.xml                      # XTCE defining LOCAL parameters with units
+│   └── etc/
+│       ├── yamcs.yaml                        # Yamcs server config (HTTP, CORS, instance)
+│       ├── yamcs.palantir.yaml               # Palantir instance config (MDB, archiving)
+│       └── processor.yaml                    # Processor config (no TM/TC, LOCAL params only)
+└── pom.xml
+```
+
+## Testing
+
+```bash
+mvn test                                      # Run all 11 tests + JaCoCo coverage
+mvn test -Dtest=TleIngestionControllerTest    # Run a single test class
+```
+
+The test suite covers:
+- **Controller** — TLE ingestion validation (valid, blank name, invalid TLE)
+- **Service** — Earth model initialization, no-TLE guard, SGP4 propagation with physical bounds checking
+- **Client** — REST payload structure, connection failure handling
+- **DTO** — JSON serialization shape for Yamcs API
+- **Integration** — Full Spring context load
+
+## Configuration
+
+| Property | Default | Description |
+|---|---|---|
+| `yamcs.base-url` | `http://localhost:8090` | Yamcs server URL (overridable via `YAMCS_URL` env var) |
+| `server.port` | `8080` | Spring Boot server port |
+| `spring.threads.virtual.enabled` | `true` | Java 21 Virtual Threads |
+
+In Docker Compose, the `YAMCS_URL` environment variable is set to `http://yamcs:8090` so the Spring Boot container resolves the Yamcs container by its Docker DNS name.
+
+## Future Improvements
+
+- [ ] Implementation of CCSDS packet standards instead of raw JSON
+- [ ] Bidirectional communication (Telecommanding) to alter the satellite orbit
+- [ ] Multi-satellite tracking with concurrent TLE management
+- [ ] Deploying into a Kubernetes cluster alongside Yamcs
+
+## Development Methodology
+
+This project was built using an **AI-augmented workflow** (Claude Code).
 AI tools were leveraged for:
-* Generating Orekit configuration boilerplate.
-* Accelerating Java 21 record definitions.
-* Writing initial Unit Tests.
-* **Core logic and architecture were design-reviewed and integrated by the human author.**
+- Generating Orekit configuration boilerplate
+- Accelerating Java 21 record definitions and Spring Boot wiring
+- Writing and iterating on the test suite
+- **Core logic and architecture were design-reviewed and integrated by the human author.**
 
-## 👤 Author
+## Author
 
-**Jakub Tóth**
+**Jakub Toth**
 Senior Systems Engineer aiming for the stars.
-
-[LinkedIn Profile Link] | [GitHub Profile Link]

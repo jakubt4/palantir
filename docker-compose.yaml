@@ -1,0 +1,34 @@
+services:
+  yamcs:
+    build: 
+      context: ./yamcs
+      dockerfile: Dockerfile
+    container_name: palantir-yamcs
+    ports:
+      - "8090:8090"
+    volumes:
+      - yamcs-data:/opt/yamcs/yamcs-data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8090/api/ || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
+
+  palantir-core:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: palantir-core
+    ports:
+      - "8080:8080"
+    environment:
+      # Overrides the default localhost with the Docker DNS name
+      - YAMCS_URL=http://yamcs:8090
+    depends_on:
+      yamcs:
+        condition: service_healthy
+
+volumes:
+  yamcs-data:
+    name: palantir_yamcs_data

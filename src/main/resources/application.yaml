@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: palantir
+  threads:
+    virtual:
+      enabled: true
+
+server:
+  port: 8080
+
+logging:
+  level:
+    io.github.jakubt4.palantir: DEBUG
+
+yamcs:
+  # Defaults to localhost for local IDE development.
+  # Can be overridden by the YAMCS_URL environment variable in Docker/Production.
+  base-url: ${YAMCS_URL:http://localhost:8090}

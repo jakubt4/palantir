@@ -1,0 +1,23 @@
+realtime:
+  services:
+    - class: org.yamcs.tctm.StreamParameterProvider
+    - class: org.yamcs.parameter.LocalParameterManager
+  config:
+    subscribeAll: true
+    recordLocalValues: true
+    alarm:
+      parameterCheck: true
+      parameterServer: enabled
+      eventServer: enabled
+
+Archive:
+  services:
+    - class: org.yamcs.tctm.ReplayService
+
+ParameterArchive:
+  services:
+    - class: org.yamcs.tctm.ReplayService
+
+ArchiveRetrieval:
+  services:
+    - class: org.yamcs.tctm.ReplayService

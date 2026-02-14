@@ -1,0 +1,21 @@
+services:
+  - class: org.yamcs.ProcessorCreatorService
+    args:
+      name: "realtime"
+      type: "realtime"
+  - class: org.yamcs.archive.XtceTmRecorder
+  - class: org.yamcs.archive.ParameterRecorder
+  - class: org.yamcs.archive.AlarmRecorder
+  - class: org.yamcs.archive.CommandHistoryRecorder
+  - class: org.yamcs.archive.ReplayServer
+
+mdb:
+  - type: "xtce"
+    spec: "mdb/palantir.xml"
+
+streamConfig:
+  cmdHist: ["cmdhist_realtime"]
+  event: ["events_realtime"]
+  param: ["pp_realtime", "sys_param", "proc_param"]
+  parameterAlarm: ["alarms_realtime"]
+  eventAlarm: ["event_alarms_realtime"]

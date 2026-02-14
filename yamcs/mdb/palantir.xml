@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SpaceSystem name="Palantir"
+             xmlns="http://www.omg.org/spec/XTCE/20180204"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="http://www.omg.org/spec/XTCE/20180204 https://www.omg.org/spec/XTCE/20180204/SpaceSystem.xsd">
+
+    <TelemetryMetaData>
+        <ParameterTypeSet>
+            <FloatParameterType name="degrees_t" sizeInBits="32">
+                <UnitSet>
+                    <Unit>deg</Unit>
+                </UnitSet>
+            </FloatParameterType>
+            <FloatParameterType name="km_t" sizeInBits="32">
+                <UnitSet>
+                    <Unit>km</Unit>
+                </UnitSet>
+            </FloatParameterType>
+        </ParameterTypeSet>
+        <ParameterSet>
+            <Parameter name="Latitude" parameterTypeRef="degrees_t">
+                <ParameterProperties dataSource="local"/>
+            </Parameter>
+            <Parameter name="Longitude" parameterTypeRef="degrees_t">
+                <ParameterProperties dataSource="local"/>
+            </Parameter>
+            <Parameter name="Altitude" parameterTypeRef="km_t">
+                <ParameterProperties dataSource="local"/>
+            </Parameter>
+        </ParameterSet>
+    </TelemetryMetaData>
+
+</SpaceSystem>
