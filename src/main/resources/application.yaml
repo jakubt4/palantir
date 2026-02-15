@@ -13,6 +13,6 @@ logging:
     io.github.jakubt4.palantir: DEBUG
 
 yamcs:
-  # Defaults to localhost for local IDE development.
-  # Can be overridden by the YAMCS_URL environment variable in Docker/Production.
-  base-url: ${YAMCS_URL:http://localhost:8090}
+  udp:
+    host: ${YAMCS_UDP_HOST:localhost}
+    port: ${YAMCS_UDP_PORT:10000}

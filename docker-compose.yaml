@@ -1,11 +1,12 @@
 services:
   yamcs:
-    build: 
+    build:
       context: ./yamcs
       dockerfile: Dockerfile
     container_name: palantir-yamcs
     ports:
       - "8090:8090"
+      - "10000:10000/udp"
     volumes:
       - yamcs-data:/opt/yamcs/yamcs-data
     healthcheck:
@@ -23,8 +24,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      # Overrides the default localhost with the Docker DNS name
-      - YAMCS_URL=http://yamcs:8090
+      - YAMCS_UDP_HOST=yamcs
     depends_on:
       yamcs:
         condition: service_healthy

@@ -6,28 +6,63 @@
 
     <TelemetryMetaData>
         <ParameterTypeSet>
-            <FloatParameterType name="degrees_t" sizeInBits="32">
-                <UnitSet>
-                    <Unit>deg</Unit>
-                </UnitSet>
+
+            <IntegerParameterType name="uint16_t" signed="false" sizeInBits="16">
+                <IntegerDataEncoding sizeInBits="16" encoding="unsigned" byteOrder="mostSignificantByteFirst"/>
+            </IntegerParameterType>
+
+            <FloatParameterType name="float32_t" sizeInBits="32">
+                <UnitSet><Unit>deg</Unit></UnitSet>
+                <FloatDataEncoding sizeInBits="32" encoding="IEEE754_1985" byteOrder="mostSignificantByteFirst"/>
             </FloatParameterType>
-            <FloatParameterType name="km_t" sizeInBits="32">
-                <UnitSet>
-                    <Unit>km</Unit>
-                </UnitSet>
+
+            <FloatParameterType name="distance_t" sizeInBits="32">
+                <UnitSet><Unit>km</Unit></UnitSet>
+                <FloatDataEncoding sizeInBits="32" encoding="IEEE754_1985" byteOrder="mostSignificantByteFirst"/>
             </FloatParameterType>
+
         </ParameterTypeSet>
+
         <ParameterSet>
-            <Parameter name="Latitude" parameterTypeRef="degrees_t">
-                <ParameterProperties dataSource="local"/>
+            <Parameter name="ccsds_packet_id" parameterTypeRef="uint16_t"/>
+            <Parameter name="ccsds_seq_count" parameterTypeRef="uint16_t"/>
+            <Parameter name="ccsds_length" parameterTypeRef="uint16_t"/>
+
+            <Parameter name="Latitude" parameterTypeRef="float32_t">
+                <ShortDescription>Satellite Geodetic Latitude</ShortDescription>
             </Parameter>
-            <Parameter name="Longitude" parameterTypeRef="degrees_t">
-                <ParameterProperties dataSource="local"/>
+            <Parameter name="Longitude" parameterTypeRef="float32_t">
+                <ShortDescription>Satellite Geodetic Longitude</ShortDescription>
             </Parameter>
-            <Parameter name="Altitude" parameterTypeRef="km_t">
-                <ParameterProperties dataSource="local"/>
+            <Parameter name="Altitude" parameterTypeRef="distance_t">
+                <ShortDescription>Satellite Altitude above Ellipsoid</ShortDescription>
             </Parameter>
         </ParameterSet>
-    </TelemetryMetaData>
 
+        <ContainerSet>
+
+            <SequenceContainer name="CCSDS_Packet_Base" abstract="true">
+                <EntryList>
+                    <ParameterRefEntry parameterRef="ccsds_packet_id"/>
+                    <ParameterRefEntry parameterRef="ccsds_seq_count"/>
+                    <ParameterRefEntry parameterRef="ccsds_length"/>
+                </EntryList>
+            </SequenceContainer>
+
+            <SequenceContainer name="Palantir_Nav_Packet">
+                <BaseContainer containerRef="CCSDS_Packet_Base">
+                    <RestrictionCriteria>
+                        <Comparison parameterRef="ccsds_packet_id" value="100" useCalibratedValue="false"/>
+                    </RestrictionCriteria>
+                </BaseContainer>
+
+                <EntryList>
+                    <ParameterRefEntry parameterRef="Latitude"/>
+                    <ParameterRefEntry parameterRef="Longitude"/>
+                    <ParameterRefEntry parameterRef="Altitude"/>
+                </EntryList>
+            </SequenceContainer>
+
+        </ContainerSet>
+    </TelemetryMetaData>
 </SpaceSystem>

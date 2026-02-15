@@ -9,11 +9,19 @@ services:
   - class: org.yamcs.archive.CommandHistoryRecorder
   - class: org.yamcs.archive.ReplayServer
 
+dataLinks:
+  - name: udp-tm
+    class: org.yamcs.tctm.UdpTmDataLink
+    stream: tm_realtime
+    port: 10000
+    packetPreprocessorClassName: org.yamcs.tctm.IssPacketPreprocessor
+
 mdb:
   - type: "xtce"
     spec: "mdb/palantir.xml"
 
 streamConfig:
+  tm: ["tm_realtime"]
   cmdHist: ["cmdhist_realtime"]
   event: ["events_realtime"]
   param: ["pp_realtime", "sys_param", "proc_param"]

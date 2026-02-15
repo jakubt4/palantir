@@ -10,3 +10,4 @@ COPY etc/processor.yaml /opt/yamcs/etc/processor.yaml
 COPY mdb/palantir.xml /opt/yamcs/mdb/palantir.xml
 
 EXPOSE 8090
+EXPOSE 10000/udp

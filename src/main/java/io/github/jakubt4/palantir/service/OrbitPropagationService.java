@@ -1,6 +1,5 @@
 package io.github.jakubt4.palantir.service;
 
-import io.github.jakubt4.palantir.client.YamcsTelemetryClient;
 import io.github.jakubt4.palantir.config.OrekitConfig;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -25,9 +24,16 @@ import java.util.concurrent.atomic.AtomicReference;
 @RequiredArgsConstructor
 public class OrbitPropagationService {
 
+    // Default ISS TLE for immediate out-of-the-box propagation
+    private static final String DEFAULT_SAT_NAME = "ISS (ZARYA)";
+    private static final String DEFAULT_TLE_LINE1 =
+            "1 25544U 98067A   08264.51782528 -.00002182  00000-0 -11606-4 0  2927";
+    private static final String DEFAULT_TLE_LINE2 =
+            "2 25544  51.6416 247.4627 0006703 130.5360 325.0288 15.72125391563537";
+
     @SuppressWarnings("unused") // injected to guarantee Orekit data is loaded before @PostConstruct
     private final OrekitConfig orekitConfig;
-    private final YamcsTelemetryClient yamcsTelemetryClient;
+    private final CcsdsTelemetrySender ccsdsTelemetrySender;
 
     private final AtomicReference<TLEPropagator> activePropagator = new AtomicReference<>();
     private final AtomicReference<String> activeSatelliteName = new AtomicReference<>("NONE");
@@ -35,7 +41,7 @@ public class OrbitPropagationService {
     private OneAxisEllipsoid earth;
 
     @PostConstruct
-    void initEarthModel() {
+    void init() {
         final var itrf = FramesFactory.getITRF(IERSConventions.IERS_2010, true);
         earth = new OneAxisEllipsoid(
                 Constants.WGS84_EARTH_EQUATORIAL_RADIUS,
@@ -43,6 +49,17 @@ public class OrbitPropagationService {
                 itrf
         );
         log.info("Earth model initialized — WGS84 ellipsoid, ITRF/IERS-2010");
+
+        loadDefaultTle();
+    }
+
+    private void loadDefaultTle() {
+        try {
+            updateTle(DEFAULT_SAT_NAME, DEFAULT_TLE_LINE1, DEFAULT_TLE_LINE2);
+            log.info("Default TLE loaded — propagation active for [{}]", DEFAULT_SAT_NAME);
+        } catch (final Exception e) {
+            log.warn("Failed to load default TLE, awaiting manual ingestion: {}", e.getMessage());
+        }
     }
 
     public void updateTle(final String satelliteName, final String line1, final String line2) {
@@ -75,13 +92,13 @@ public class OrbitPropagationService {
             final var lonDeg = Math.toDegrees(geo.getLongitude());
             final var altKm = geo.getAltitude() / 1000.0;
 
-            log.info("[{}] Position — lat={} °, lon={} °, alt={} km",
+            log.info("[{}] Position — lat={} deg, lon={} deg, alt={} km",
                     activeSatelliteName.get(),
                     String.format("%.2f", latDeg),
                     String.format("%.2f", lonDeg),
                     String.format("%.2f", altKm));
 
-            yamcsTelemetryClient.sendTelemetry(latDeg, lonDeg, altKm);
+            ccsdsTelemetrySender.sendPacket((float) latDeg, (float) lonDeg, (float) altKm);
         } catch (final Exception e) {
             log.error("[{}] Propagation error: {}", activeSatelliteName.get(), e.getMessage());
         }
