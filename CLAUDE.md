@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Palantir** is a Digital Twin ground segment PoC that bridges astrodynamics simulation with mission control. It simulates a satellite in Low Earth Orbit using Orekit, encoding geodetic telemetry into CCSDS Space Packets (CCSDS 133.0-B-1) with CFS checksums and streaming them over UDP to a Yamcs mission control instance.
+**Palantir** is a Digital Twin ground segment PoC that bridges astrodynamics simulation with mission control. It simulates a satellite in Low Earth Orbit using Orekit, encoding geodetic telemetry into CCSDS Space Packets (CCSDS 133.0-B-1) and streaming them over UDP to a Yamcs mission control instance.
 
 **Architecture:** Two-pillar design:
 - **Physics Engine (port 8080):** Spring Boot 3.2.5 app using Orekit 12.2 for SGP4/SDP4 TLE-based orbit propagation, with Java 21 Virtual Threads for high-throughput telemetry generation. Accepts TLE uploads via REST, propagates at 1 Hz, encodes CCSDS packets over UDP.
@@ -64,7 +64,7 @@ The app is a Spring Boot service that initializes Orekit physics data at startup
 - **`dto/`** — Java records: `TleRequest` (satelliteName, line1, line2) and `TleResponse` (satelliteName, status, message) for the TLE ingestion API.
 - **`yamcs/`** — Custom Yamcs Docker image based on `yamcs/example-simulation:5.12.2`. Instance named `palantir`. Config files:
   - `etc/yamcs.yaml` — Server config (HTTP on 8090, CORS enabled, single `palantir` instance).
-  - `etc/yamcs.palantir.yaml` — Instance config (UdpTmDataLink on port 10000, IssPacketPreprocessor for CFS checksum validation, XTCE MDB loader, archive services, stream config).
+  - `etc/yamcs.palantir.yaml` — Instance config (UdpTmDataLink on port 10000, GenericPacketPreprocessor with local generation time and no error detection, XTCE MDB loader, archive services, stream config).
   - `etc/processor.yaml` — Realtime processor with `StreamParameterProvider` (routes decoded TM params) and `LocalParameterManager`. Archive/replay processors with `ReplayService`.
   - `mdb/palantir.xml` — XTCE defining CCSDS binary containers: abstract `CCSDS_Packet_Base` (6B header) with `Palantir_Nav_Packet` (APID=100 restriction, 3 IEEE 754 float parameters: Latitude deg, Longitude deg, Altitude km).
 - **`docker-compose.yaml`** (project root) — Orchestrates `yamcs` and `palantir-core` services. Yamcs has a healthcheck (`GET /api/`), persistent volume (`palantir_yamcs_data`), and the Spring Boot service depends on Yamcs health. `YAMCS_UDP_HOST=yamcs` env var enables Docker DNS resolution.
