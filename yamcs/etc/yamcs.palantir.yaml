@@ -14,7 +14,13 @@ dataLinks:
     class: org.yamcs.tctm.UdpTmDataLink
     stream: tm_realtime
     port: 10000
-    packetPreprocessorClassName: org.yamcs.tctm.IssPacketPreprocessor
+    packetPreprocessorClassName: org.yamcs.tctm.GenericPacketPreprocessor
+    packetPreprocessorArgs:
+      timestampOffset: 0
+      useLocalGenerationTime: true
+      seqCountOffset: 2
+      errorDetection:
+        type: NONE
 
 mdb:
   - type: "xtce"
