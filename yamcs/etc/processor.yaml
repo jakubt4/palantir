@@ -1,10 +1,9 @@
 realtime:
   services:
     - class: org.yamcs.tctm.StreamParameterProvider
-    - class: org.yamcs.parameter.LocalParameterManager
-  config:
+  args:
+    streams: ["tm_realtime"]
     subscribeAll: true
-    recordLocalValues: true
     alarm:
       parameterCheck: true
       parameterServer: enabled

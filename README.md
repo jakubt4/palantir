@@ -29,7 +29,7 @@ Project Palantir is a Proof of Concept (PoC) constructing a "Digital Twin" groun
 │  │  ┌────────────▼─────────────┐  │    │  │  /Palantir/Longitude  │  │  │
 │  │  │  CcsdsTelemetrySender    │──┼────┼──►  /Palantir/Altitude   │  │  │
 │  │  │  CCSDS 133.0-B-1        │  │    │  └───────────────────────┘  │  │
-│  │  │  UDP Datagram (20B)      │  │    │            │                │  │
+│  │  │  UDP Datagram (18B)      │  │    │            │                │  │
 │  │  └──────────────────────────┘  │    │       WebSocket + Archive   │  │
 │  │                                │    │            ▼                │  │
 │  │  Spring Boot 3.2 / Java 21    │    │       Browser UI            │  │
@@ -55,7 +55,7 @@ Project Palantir is a Proof of Concept (PoC) constructing a "Digital Twin" groun
      │                                │◄───────────────────────┘                      │
      │                                │                                               │
      │                                │  CCSDS Space Packet (UDP :10000)              │
-     │                                │  [Header 6B | Lat | Lon | Alt | CFS] (20B)   │
+     │                                │  [Header 6B | Lat | Lon | Alt] (18B)          │
      │                                │──────────────────────────────────────────────►│
      │                                │                                               │
      │                                │                      GenericPacketPreprocessor│
@@ -70,7 +70,7 @@ Project Palantir is a Proof of Concept (PoC) constructing a "Digital Twin" groun
      │                                │                              Browser UI       │
 ```
 
-### CCSDS Space Packet Layout (20 bytes)
+### CCSDS Space Packet Layout (18 bytes)
 
 The telemetry packet follows CCSDS 133.0-B-1. Yamcs `GenericPacketPreprocessor` extracts the sequence count from offset 2 and assigns generation time from the local clock.
 
@@ -79,17 +79,13 @@ Offset  Size   Field               Encoding                            Hex (exam
 ──────  ────   ─────               ────────                            ─────────────
 [0-1]   2B     Packet ID           Version=000|Type=0(TM)|Sec=0|APID  0x0064
 [2-3]   2B     Sequence Control    Flags=11(standalone)|Count(14-bit)  0xC000+
-[4-5]   2B     Data Length         (payload + checksum) - 1 = 13      0x000D
+[4-5]   2B     Data Length         payload_bytes - 1 = 11              0x000B
 ─── CCSDS Primary Header (6 bytes) ──────────────────────────────────────────────
 [6-9]   4B     Latitude            IEEE 754 float, big-endian (deg)
 [10-13] 4B     Longitude           IEEE 754 float, big-endian (deg)
 [14-17] 4B     Altitude            IEEE 754 float, big-endian (km)
 ─── Payload (12 bytes) ─────────────────────────────────────────────────────────
-[18-19] 2B     CFS Checksum        Running 16-bit sum of bytes [0..17]
-─── Integrity (2 bytes) ────────────────────────────────────────────────────────
 ```
-
-The packet includes a trailing CFS-style 16-bit checksum (sum of all big-endian 16-bit words in bytes 0-17). Error detection is disabled in the preprocessor (`errorDetection: NONE`), so the checksum bytes are present but not validated by Yamcs.
 
 ### Coordinate Transformation Pipeline
 
@@ -253,7 +249,7 @@ palantir/
 │   │   └── TleIngestionController.java       # POST /api/orbit/tle — validates & delegates
 │   ├── service/
 │   │   ├── OrbitPropagationService.java      # SGP4 propagation @1Hz, atomic TLE hot-swap
-│   │   └── CcsdsTelemetrySender.java         # CCSDS 133.0-B-1 encoding, CFS checksum, UDP
+│   │   └── CcsdsTelemetrySender.java         # CCSDS 133.0-B-1 encoding, UDP transport
 │   └── dto/
 │       ├── TleRequest.java                   # Inbound record: satelliteName, line1, line2
 │       └── TleResponse.java                  # Outbound record: satelliteName, status, message
