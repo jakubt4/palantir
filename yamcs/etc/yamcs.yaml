@@ -1,4 +1,3 @@
-processor: processor.yaml
 services:
   - class: org.yamcs.http.HttpServer
     args:

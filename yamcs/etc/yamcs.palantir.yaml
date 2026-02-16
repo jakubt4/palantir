@@ -27,7 +27,9 @@ mdb:
     spec: "mdb/palantir.xml"
 
 streamConfig:
-  tm: ["tm_realtime"]
+  tm:
+    - name: "tm_realtime"
+      processor: "realtime"
   cmdHist: ["cmdhist_realtime"]
   event: ["events_realtime"]
   param: ["pp_realtime", "sys_param", "proc_param"]
