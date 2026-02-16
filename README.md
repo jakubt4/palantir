@@ -9,7 +9,7 @@ Project Palantir is a Proof of Concept (PoC) constructing a "Digital Twin" groun
 ## Architecture
 
 ```
-┌──────────────────────────────────────────────────────────────────────────┐
+┌─────────────────────────────────────────────────────────────────────────┐
 │                           DOCKER COMPOSE                                │
 │                                                                         │
 │  ┌────────────────────────────────┐    ┌─────────────────────────────┐  │
@@ -21,22 +21,22 @@ Project Palantir is a Proof of Concept (PoC) constructing a "Digital Twin" groun
 │  │  └────────────┬─────────────┘  │    │  │                       │  │  │
 │  │               │                │    │  │  UdpTmDataLink :10000 │  │  │
 │  │  ┌────────────▼─────────────┐  │    │  │         │             │  │  │
-│  │  │ OrbitPropagationService  │  │    │  │  GenericPacket         │  │  │
-│  │  │ TLE → SGP4 → WGS84 LLA  │  │    │  │  Preprocessor         │  │  │
+│  │  │ OrbitPropagationService  │  │    │  │  GenericPacket        │  │  │
+│  │  │ TLE → SGP4 → WGS84 LLA   │  │    │  │  Preprocessor         │  │  │
 │  │  │ @Scheduled(1 Hz)         │  │    │  │         │             │  │  │
 │  │  └────────────┬─────────────┘  │    │  │  XTCE MDB Decoder     │  │  │
-│  │               │                │    │  │  /Palantir/Latitude    │  │  │
+│  │               │                │    │  │  /Palantir/Latitude   │  │  │
 │  │  ┌────────────▼─────────────┐  │    │  │  /Palantir/Longitude  │  │  │
 │  │  │  CcsdsTelemetrySender    │──┼────┼──►  /Palantir/Altitude   │  │  │
-│  │  │  CCSDS 133.0-B-1        │  │    │  └───────────────────────┘  │  │
+│  │  │  CCSDS 133.0-B-1         │  │    │  └───────────────────────┘  │  │
 │  │  │  UDP Datagram (18B)      │  │    │            │                │  │
 │  │  └──────────────────────────┘  │    │       WebSocket + Archive   │  │
 │  │                                │    │            ▼                │  │
-│  │  Spring Boot 3.2 / Java 21    │    │       Browser UI            │  │
-│  │  Orekit 12.2 / Virtual Threads│    │                             │  │
-│  └────────────────────────────────┘    │  Yamcs 5.12.2 / XTCE MDB  │  │
+│  │  Spring Boot 3.2 / Java 21     │    │       Browser UI            │  │
+│  │  Orekit 12.2 / Virtual Threads │    │                             │  │
+│  └────────────────────────────────┘    │  Yamcs 5.12.2 / XTCE MDB    │  │
 │                                        └─────────────────────────────┘  │
-└──────────────────────────────────────────────────────────────────────────┘
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Data Flow
@@ -168,7 +168,7 @@ On startup you'll see:
 ```
 CCSDS Telemetry Link initialized — target=localhost:10000
 Earth model initialized — WGS84 ellipsoid, ITRF/IERS-2010
-AOS — Acquired signal for [ISS (ZARYA)], TLE epoch: ..., propagator: SGP4
+AOS — Acquired signal for [ISS (ZARYA)], TLE epoch: ..., propagator: TLEPropagator
 Default TLE loaded — propagation active for [ISS (ZARYA)]
 ```
 
@@ -240,6 +240,8 @@ palantir/
 ├── docker-compose.yaml                       # Full-stack orchestration (HTTP + UDP ports)
 ├── Dockerfile                                # Multi-stage Spring Boot build (Maven → JRE 21)
 ├── pom.xml                                   # Maven build with JaCoCo coverage
+├── FEATURES.md                               # Feature tracking and roadmap
+├── LICENSE                                   # Project license
 │
 ├── src/main/java/io/github/jakubt4/palantir/
 │   ├── PalantirApplication.java              # @SpringBootApplication + @EnableScheduling
@@ -312,7 +314,7 @@ Coverage report: `target/site/jacoco/index.html`
 |---|---|---|---|
 | `PalantirApplicationTests` | Integration | 1 | Full Spring context loads (Orekit, services, scheduler) |
 | `TleIngestionControllerTest` | `@WebMvcTest` | 3 | HTTP layer: valid TLE, blank name, invalid TLE |
-| `OrbitPropagationServiceTest` | `@SpringBootTest` | 2 | Earth model init, propagated lat/lon/alt physical bounds |
+| `OrbitPropagationServiceTest` | `@SpringBootTest` | 2 | Service bean initialization, propagated lat/lon/alt physical bounds |
 
 ## Configuration
 
