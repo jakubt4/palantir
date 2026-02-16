@@ -27,9 +27,9 @@ public class OrbitPropagationService {
     // Default ISS TLE for immediate out-of-the-box propagation
     private static final String DEFAULT_SAT_NAME = "ISS (ZARYA)";
     private static final String DEFAULT_TLE_LINE1 =
-            "1 25544U 98067A   08264.51782528 -.00002182  00000-0 -11606-4 0  2927";
+            "1 25544U 98067A   26046.82773376  .00012360  00000+0  23475-3 0  9996";
     private static final String DEFAULT_TLE_LINE2 =
-            "2 25544  51.6416 247.4627 0006703 130.5360 325.0288 15.72125391563537";
+            "2 25544  51.6318 180.4216 0010986 102.2508 257.9711 15.48632468552944";
 
     @SuppressWarnings("unused") // injected to guarantee Orekit data is loaded before @PostConstruct
     private final OrekitConfig orekitConfig;

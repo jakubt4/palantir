@@ -168,7 +168,7 @@ On startup you'll see:
 ```
 CCSDS Telemetry Link initialized — target=localhost:10000
 Earth model initialized — WGS84 ellipsoid, ITRF/IERS-2010
-AOS — Acquired signal for [ISS (ZARYA)], TLE epoch: ..., propagator: TLEPropagator
+AOS — Acquired signal for [ISS (ZARYA)], TLE epoch: ..., propagator: SGP4
 Default TLE loaded — propagation active for [ISS (ZARYA)]
 ```
 
