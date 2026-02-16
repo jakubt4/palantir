@@ -269,8 +269,8 @@ palantir/
     ├── Dockerfile                            # FROM yamcs/example-simulation:5.12.2
     ├── etc/
     │   ├── yamcs.yaml                        # Server — HTTP :8090, CORS, instance list
-    │   ├── yamcs.palantir.yaml               # Instance — UdpTmDataLink, GenericPacketPreprocessor
-    │   └── processor.yaml                    # Processor — StreamParameterProvider, archives
+    │   ├── yamcs.palantir.yaml               # Instance — UdpTmDataLink, GenericPacketPreprocessor, stream→processor mapping
+    │   └── processor.yaml                    # Processor — StreamTmPacketProvider (TM decoding), StreamParameterProvider, archives
     └── mdb/
         └── palantir.xml                      # XTCE — CCSDS containers, APID=100, float params
 ```
@@ -283,9 +283,10 @@ The Yamcs instance `palantir` is configured as follows:
 |---|---|---|
 | **Data Link** | `UdpTmDataLink` (:10000) | Receives raw CCSDS packets over UDP |
 | **Preprocessor** | `GenericPacketPreprocessor` | Extracts sequence count, assigns local generation time |
+| **TM Processor** | `StreamTmPacketProvider` | Subscribes to `tm_realtime` stream, feeds packets into XTCE decoder for realtime parameter extraction |
 | **MDB** | XTCE `palantir.xml` | Decodes CCSDS containers by APID, extracts IEEE 754 floats |
 | **Archive** | `XtceTmRecorder` + `ParameterRecorder` | Persists raw TM frames and decoded parameter values |
-| **Processor** | `StreamParameterProvider` | Routes decoded TM parameters to the realtime processor |
+| **Processor** | `StreamParameterProvider` | Routes processed parameters to the realtime processor cache |
 
 **XTCE Container Hierarchy:**
 

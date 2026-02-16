@@ -64,8 +64,8 @@ The app is a Spring Boot service that initializes Orekit physics data at startup
 - **`dto/`** — Java records: `TleRequest` (satelliteName, line1, line2) and `TleResponse` (satelliteName, status, message) for the TLE ingestion API.
 - **`yamcs/`** — Custom Yamcs Docker image based on `yamcs/example-simulation:5.12.2`. Instance named `palantir`. Config files:
   - `etc/yamcs.yaml` — Server config (HTTP on 8090, CORS enabled, single `palantir` instance).
-  - `etc/yamcs.palantir.yaml` — Instance config (UdpTmDataLink on port 10000, GenericPacketPreprocessor with local generation time and no error detection, XTCE MDB loader, archive services, stream config).
-  - `etc/processor.yaml` — Realtime processor with `StreamParameterProvider` (routes decoded TM params) and `LocalParameterManager`. Archive/replay processors with `ReplayService`.
+  - `etc/yamcs.palantir.yaml` — Instance config (UdpTmDataLink on port 10000, GenericPacketPreprocessor with local generation time and no error detection, XTCE MDB loader, archive services, stream config with `tm_realtime` mapped to `realtime` processor).
+  - `etc/processor.yaml` — Realtime processor with `StreamTmPacketProvider` (subscribes to `tm_realtime`, drives XTCE packet decoding into live parameters) and `StreamParameterProvider` (routes processed parameters). Archive/replay processors with `ReplayService`.
   - `mdb/palantir.xml` — XTCE defining CCSDS binary containers: abstract `CCSDS_Packet_Base` (6B header) with `Palantir_Nav_Packet` (APID=100 restriction, 3 IEEE 754 float parameters: Latitude deg, Longitude deg, Altitude km).
 - **`docker-compose.yaml`** (project root) — Orchestrates `yamcs` and `palantir-core` services. Yamcs has a healthcheck (`GET /api/`), persistent volume (`palantir_yamcs_data`), and the Spring Boot service depends on Yamcs health. `YAMCS_UDP_HOST=yamcs` env var enables Docker DNS resolution.
 - **`Dockerfile`** (project root) — Multi-stage build for the Spring Boot app: Maven + JDK 21 build stage, JRE 21 runtime stage.
