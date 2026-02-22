@@ -28,7 +28,7 @@ services:
       - YAMCS_UDP_HOST=yamcs
     depends_on:
       yamcs:
-        condition: service_healthy
+        condition: service_started
 
 volumes:
   yamcs-data:
