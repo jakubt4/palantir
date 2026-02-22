@@ -23,6 +23,7 @@ services:
     container_name: palantir-core
     ports:
       - "8080:8080"
+      - "10001:10001/udp"
     environment:
       - YAMCS_UDP_HOST=yamcs
     depends_on:

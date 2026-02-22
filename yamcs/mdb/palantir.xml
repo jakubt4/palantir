@@ -65,4 +65,35 @@
 
         </ContainerSet>
     </TelemetryMetaData>
+    <CommandMetaData>
+        <ArgumentTypeSet>
+            <IntegerArgumentType name="uint8_arg_t" signed="false" sizeInBits="8">
+                <IntegerDataEncoding sizeInBits="8" encoding="unsigned"/>
+            </IntegerArgumentType>
+        </ArgumentTypeSet>
+
+        <MetaCommandSet>
+            <MetaCommand name="PING">
+                <ArgumentList>
+                    <Argument name="OpCode" argumentTypeRef="uint8_arg_t" initialValue="1"/>
+                </ArgumentList>
+                <CommandContainer name="PING_Container">
+                    <EntryList>
+                        <ArgumentRefEntry argumentRef="OpCode"/>
+                    </EntryList>
+                </CommandContainer>
+            </MetaCommand>
+
+            <MetaCommand name="REBOOT_OBC">
+                <ArgumentList>
+                    <Argument name="OpCode" argumentTypeRef="uint8_arg_t" initialValue="2"/>
+                </ArgumentList>
+                <CommandContainer name="REBOOT_OBC_Container">
+                    <EntryList>
+                        <ArgumentRefEntry argumentRef="OpCode"/>
+                    </EntryList>
+                </CommandContainer>
+            </MetaCommand>
+        </MetaCommandSet>
+    </CommandMetaData>
 </SpaceSystem>

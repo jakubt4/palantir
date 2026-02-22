@@ -21,6 +21,11 @@ dataLinks:
       seqCountOffset: 2
       errorDetection:
         type: NONE
+  - name: udp-tc
+    class: org.yamcs.tctm.UdpTcDataLink
+    stream: tc_realtime
+    host: palantir-core
+    port: 10001
 
 mdb:
   - type: "xtce"
@@ -30,7 +35,10 @@ streamConfig:
   tm:
     - name: "tm_realtime"
       processor: "realtime"
-  cmdHist: ["cmdhist_realtime"]
+  tc:
+    - name: "tc_realtime"
+      processor: "realtime"
+  cmdHist: ["cmdhist_realtime", "cmdhist_dump"]
   event: ["events_realtime"]
   param: ["pp_realtime", "sys_param", "proc_param"]
   parameterAlarm: ["alarms_realtime"]
