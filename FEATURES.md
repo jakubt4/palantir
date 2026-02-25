@@ -20,26 +20,37 @@ This document serves as the high-level tracking log for the **Palantir Digital T
 
 ---
 
-## 🛠️ TODO / Roadmap (In Progress)
+## ✅ Implemented (Done)
 
-### 🎮 Phase 3: Telecommanding (Uplink) [PRIORITY: HIGH]
-**Objective:** Implement a bidirectional simulation loop, allowing operators to control the satellite state from the Yamcs Ground Station via binary commands.
+### 🎮 Phase 3: Telecommanding (Uplink)
+**Objective:** Bidirectional simulation loop — operators control the satellite from Yamcs via binary commands over UDP.
 
 #### 1. Ground Segment Configuration (Yamcs)
-* [ ] Configure `UdpTcDataLink` in `yamcs.yaml` targeting `palantir-core:10001`.
-* [ ] Define **MetaCommands** and **CommandContainers** in the XTCE database (`palantir.xml`).
-* [ ] Define operational commands:
-    * `CMD_REBOOT_OBC` (OpCode: `0x01`)
-    * `CMD_ADJUST_ORBIT` (OpCode: `0x02`, Arg: `DeltaV_m_s`)
-    * `CMD_SET_TM_RATE` (OpCode: `0x03`, Arg: `RateEnum`)
+* [x] Configure `UdpTcDataLink` in `yamcs.palantir.yaml` targeting `palantir-core:10001`.
+* [x] Configure `StreamTcCommandReleaser` in `processor.yaml` to release commands to `tc_realtime` stream.
+* [x] Define **MetaCommands** and **CommandContainers** in the XTCE database (`palantir.xml`):
+    * `PING` (OpCode: `0x01`) — No-op heartbeat
+    * `REBOOT_OBC` (OpCode: `0x02`) — Simulated OBC reboot
 
 #### 2. Flight Software Simulation (`palantir-core`)
-* [ ] Implement `UdpCommandReceiver` listening on port `10001`.
-* [ ] Implement a **CCSDS Telecommand Parser** (Validation of APID: 200 & Sequence Flags).
-* [ ] Create a `CommandExecutorService` to map OpCodes to Java logic.
+* [x] Implement `UdpCommandReceiver` listening on UDP port `10001` (Virtual Thread executor).
+* [x] Parse 1-byte opcode from incoming datagrams and dispatch commands (0x01=PING, 0x02=REBOOT_OBC, 0x03=SET_TRANSMIT_POWER).
+* [x] Docker Compose exposes UDP 10001 and uses `service_started` dependency to ensure DNS resolution works for `UdpTcDataLink`.
 
-#### 3. Simulation Feedback Loop (Physics Reaction)
-* [ ] **Thrust Maneuver:** executing `CMD_ADJUST_ORBIT` must dynamically modify the `TLEPropagator` state (altering the orbit in real-time).
+---
+
+## 🛠️ TODO / Roadmap (In Progress)
+
+### 🎮 Phase 3b: Advanced Telecommanding
+**Objective:** Extend the telecommand subsystem with richer command handling and simulation feedback.
+
+#### 1. Command Handling Enhancements
+* [ ] Implement a **CCSDS Telecommand Parser** with full header validation (APID, Sequence Flags).
+* [ ] Create a `CommandExecutorService` to decouple opcode dispatch from `UdpCommandReceiver`.
+* [ ] Define additional XTCE commands (SET_TRANSMIT_POWER is handled in code but not yet in XTCE MDB).
+
+#### 2. Simulation Feedback Loop (Physics Reaction)
+* [ ] **Thrust Maneuver:** executing a delta-V command must dynamically modify the propagator state (altering the orbit in real-time).
 * [ ] **Fault Injection:** Implement a "Chaos Monkey" command to simulate component failure (e.g., Battery Voltage drop to 0V).
 
 ---

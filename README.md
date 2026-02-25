@@ -32,6 +32,11 @@ Project Palantir is a Proof of Concept (PoC) constructing a "Digital Twin" groun
 │  │  │  UDP Datagram (18B)      │  │    │            │                │  │
 │  │  └──────────────────────────┘  │    │       WebSocket + Archive   │  │
 │  │                                │    │            ▼                │  │
+│  │  ┌──────────────────────────┐  │    │  ┌───────────────────────┐  │  │
+│  │  │  UdpCommandReceiver     │  │    │  │  UdpTcDataLink :10001 │  │  │
+│  │  │  UDP :10001 (TC listen) │◄─┼────┼──│  (command uplink)     │  │  │
+│  │  └──────────────────────────┘  │    │  └───────────────────────┘  │  │
+│  │                                │    │                             │  │
 │  │  Spring Boot 3.2 / Java 21     │    │       Browser UI            │  │
 │  │  Orekit 12.2 / Virtual Threads │    │                             │  │
 │  └────────────────────────────────┘    │  Yamcs 5.12.2 / XTCE MDB    │  │
@@ -68,6 +73,13 @@ Project Palantir is a Proof of Concept (PoC) constructing a "Digital Twin" groun
      │                                │                              WebSocket        │
      │                                │                                   ▼           │
      │                                │                              Browser UI       │
+     │                                │                                   │           │
+     │                                │           TC Command (PING, REBOOT_OBC)       │
+     │                                │                                   │           │
+     │                                │  Telecommand Packet (UDP :10001)  │           │
+     │                                │◄──────────────────────────────────────────────│
+     │                                │  UdpTcDataLink → UdpCommandReceiver           │
+     │                                │  Parse 1-byte opcode, dispatch command        │
 ```
 
 ### CCSDS Space Packet Layout (18 bytes)
@@ -106,13 +118,21 @@ Java 21 Virtual Thread Pool (spring.threads.virtual.enabled=true)
 │       └── OrbitPropagationService.updateTle()
 │           └── AtomicReference<TLEPropagator>.set()    ← atomic write
 │
-└── Scheduler Thread (Spring @Scheduled, virtual)
-    └── OrbitPropagationService.propagateAndSend() @ 1 Hz
-        ├── AtomicReference<TLEPropagator>.get()        ← atomic read
-        ├── TLEPropagator.propagate(now) → SpacecraftState
-        ├── TEME → ITRF → WGS84 geodetic
-        └── CcsdsTelemetrySender.sendPacket(lat, lon, alt)
-            └── DatagramSocket.send() → UDP :10000
+├── Scheduler Thread (Spring @Scheduled, virtual)
+│   └── OrbitPropagationService.propagateAndSend() @ 1 Hz
+│       ├── AtomicReference<TLEPropagator>.get()        ← atomic read
+│       ├── TLEPropagator.propagate(now) → SpacecraftState
+│       ├── TEME → ITRF → WGS84 geodetic
+│       └── CcsdsTelemetrySender.sendPacket(lat, lon, alt)
+│           └── DatagramSocket.send() → UDP :10000
+│
+└── Uplink Listener Thread (Virtual Thread executor)
+    └── UdpCommandReceiver.startListening()
+        ├── DatagramSocket.receive() ← blocking on UDP :10001
+        └── processTelecommand() → dispatch by opcode
+            ├── 0x01 → PING / NOOP
+            ├── 0x02 → REBOOT_OBC
+            └── 0x03 → SET_TRANSMIT_POWER
 ```
 
 `AtomicReference<TLEPropagator>` provides lock-free thread safety between the HTTP thread (writing new TLEs) and the scheduler thread (reading for propagation). TLE updates take effect on the next 1-second tick with zero downtime.
@@ -143,7 +163,7 @@ Java 21 Virtual Thread Pool (spring.threads.virtual.enabled=true)
 docker compose up --build
 ```
 
-This builds and starts both services. The `palantir-core` container waits for Yamcs to pass its healthcheck before starting. Telemetry flows immediately using a built-in default ISS TLE. Yamcs archive data is persisted in a named Docker volume (`palantir_yamcs_data`).
+This builds and starts both services. The `palantir-core` container starts as soon as Yamcs launches (`service_started`), not after Yamcs is healthy — this ensures `palantir-core` joins the Docker network before Yamcs initializes its `UdpTcDataLink` (DNS must resolve `palantir-core` at that point). Telemetry flows immediately using a built-in default ISS TLE. Yamcs archive data is persisted in a named Docker volume (`palantir_yamcs_data`).
 
 ### Option B: Manual Setup
 
@@ -251,7 +271,9 @@ palantir/
 │   │   └── TleIngestionController.java       # POST /api/orbit/tle — validates & delegates
 │   ├── service/
 │   │   ├── OrbitPropagationService.java      # SGP4 propagation @1Hz, atomic TLE hot-swap
-│   │   └── CcsdsTelemetrySender.java         # CCSDS 133.0-B-1 encoding, UDP transport
+│   │   ├── CcsdsTelemetrySender.java         # CCSDS 133.0-B-1 encoding, UDP transport
+│   │   └── uplink/
+│   │       └── UdpCommandReceiver.java       # TC listener on UDP :10001, opcode dispatch
 │   └── dto/
 │       ├── TleRequest.java                   # Inbound record: satelliteName, line1, line2
 │       └── TleResponse.java                  # Outbound record: satelliteName, status, message
@@ -271,10 +293,10 @@ palantir/
     ├── Dockerfile                            # FROM yamcs/example-simulation:5.12.2
     ├── etc/
     │   ├── yamcs.yaml                        # Server — HTTP :8090, CORS, instance list
-    │   ├── yamcs.palantir.yaml               # Instance — UdpTmDataLink, GenericPacketPreprocessor, stream→processor mapping
-    │   └── processor.yaml                    # Processor — StreamTmPacketProvider (TM decoding), StreamParameterProvider, archives
+    │   ├── yamcs.palantir.yaml               # Instance — UdpTmDataLink, UdpTcDataLink, GenericPacketPreprocessor, stream→processor mapping
+    │   └── processor.yaml                    # Processor — StreamTmPacketProvider, StreamTcCommandReleaser, StreamParameterProvider, archives
     └── mdb/
-        └── palantir.xml                      # XTCE — CCSDS containers, APID=100, float params
+        └── palantir.xml                      # XTCE — CCSDS containers (APID=100 TM), PING + REBOOT_OBC commands
 ```
 
 ## Yamcs Configuration
@@ -283,14 +305,16 @@ The Yamcs instance `palantir` is configured as follows:
 
 | Component | Class | Purpose |
 |---|---|---|
-| **Data Link** | `UdpTmDataLink` (:10000) | Receives raw CCSDS packets over UDP |
+| **TM Data Link** | `UdpTmDataLink` (:10000) | Receives raw CCSDS telemetry packets over UDP |
+| **TC Data Link** | `UdpTcDataLink` (:10001) | Sends telecommand packets to `palantir-core` over UDP |
 | **Preprocessor** | `GenericPacketPreprocessor` | Extracts sequence count, assigns local generation time |
 | **TM Processor** | `StreamTmPacketProvider` | Subscribes to `tm_realtime` stream, feeds packets into XTCE decoder for realtime parameter extraction |
-| **MDB** | XTCE `palantir.xml` | Decodes CCSDS containers by APID, extracts IEEE 754 floats |
+| **TC Releaser** | `StreamTcCommandReleaser` | Releases commands from the realtime processor to `tc_realtime` stream |
+| **MDB** | XTCE `palantir.xml` | Decodes CCSDS containers by APID, extracts IEEE 754 floats; defines PING and REBOOT_OBC telecommands |
 | **Archive** | `XtceTmRecorder` + `ParameterRecorder` | Persists raw TM frames and decoded parameter values |
 | **Processor** | `StreamParameterProvider` | Routes processed parameters to the realtime processor cache |
 
-**XTCE Container Hierarchy:**
+**XTCE Telemetry Container Hierarchy:**
 
 ```
 CCSDS_Packet_Base (abstract)          ← 6-byte primary header
@@ -298,6 +322,13 @@ CCSDS_Packet_Base (abstract)          ← 6-byte primary header
         ├── Latitude   (float32, deg)
         ├── Longitude  (float32, deg)
         └── Altitude   (float32, km)
+```
+
+**XTCE Command Definitions:**
+
+```
+PING             ← OpCode: 0x01 (uint8)
+REBOOT_OBC       ← OpCode: 0x02 (uint8)
 ```
 
 ## Testing
@@ -322,6 +353,7 @@ Coverage report: `target/site/jacoco/index.html`
 |---|---|---|---|
 | `yamcs.udp.host` | `localhost` | `YAMCS_UDP_HOST` | Yamcs UDP TM data link host |
 | `yamcs.udp.port` | `10000` | `YAMCS_UDP_PORT` | Yamcs UDP TM data link port |
+| `palantir.uplink.port` | `10001` | — | UDP port for telecommand reception (set to `0` in test profile for ephemeral port) |
 | `server.port` | `8080` | `SERVER_PORT` | Spring Boot HTTP port |
 | `spring.threads.virtual.enabled` | `true` | — | Java 21 Virtual Threads |
 
@@ -337,7 +369,7 @@ If missing, download from the [Orekit Data repository](https://gitlab.orekit.org
 
 - [x] CCSDS binary packet telemetry over UDP (replaced REST-based transport)
 - [x] GenericPacketPreprocessor with local generation time
-- [ ] Telecommanding — bidirectional TC/TM communication
+- [x] Telecommanding — bidirectional TC/TM communication (PING, REBOOT_OBC via UDP uplink)
 - [ ] Multi-satellite tracking with concurrent TLE management
 - [ ] Ground station visibility windows and pass prediction
 - [ ] Kubernetes deployment with Yamcs
