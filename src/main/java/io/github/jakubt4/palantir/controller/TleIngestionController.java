@@ -11,6 +11,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * REST endpoint for Two-Line Element (TLE) ingestion.
+ *
+ * <p>Accepts a satellite TLE via {@code POST /api/orbit/tle} and hot-swaps
+ * the active orbit propagator, enabling in-flight target changes without restart.
+ */
 @Slf4j
 @RestController
 @RequestMapping("/api/orbit")
@@ -19,6 +25,13 @@ public class TleIngestionController {
 
     private final OrbitPropagationService orbitPropagationService;
 
+    /**
+     * Ingests a TLE set and activates orbit propagation for the given satellite.
+     *
+     * @param request satellite name and two-line element strings
+     * @return {@code 200 OK} with ACTIVE status on success, {@code 400 Bad Request} on
+     *         validation failure or Orekit parse error
+     */
     @PostMapping("/tle")
     public ResponseEntity<TleResponse> ingestTle(@RequestBody final TleRequest request) {
         if (request.satelliteName() == null || request.satelliteName().isBlank()) {

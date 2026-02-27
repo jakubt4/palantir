@@ -25,6 +25,9 @@ public class UdpCommandReceiver {
     private DatagramSocket socket;
     private volatile boolean running = true;
 
+    /**
+     * @param port UDP port to bind for telecommand reception (default 10001, 0 for ephemeral in tests)
+     */
     public UdpCommandReceiver(@Value("${palantir.uplink.port:10001}") final int port) {
         this.port = port;
     }

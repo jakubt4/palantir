@@ -19,6 +19,16 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.concurrent.atomic.AtomicReference;
 
+/**
+ * Core orbit propagation engine — drives the satellite digital twin.
+ *
+ * <p>Maintains a thread-safe {@link TLEPropagator} that can be hot-swapped at runtime
+ * via {@link #updateTle}. A {@code @Scheduled} loop propagates the current TLE at 1 Hz,
+ * converts the spacecraft state from TEME to geodetic coordinates (WGS-84), and hands
+ * lat/lon/alt to {@link CcsdsTelemetrySender} for CCSDS downlink.
+ *
+ * <p>On startup a default ISS TLE is loaded so telemetry flows immediately.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -62,6 +72,14 @@ public class OrbitPropagationService {
         }
     }
 
+    /**
+     * Parses a TLE and atomically replaces the active propagator.
+     *
+     * @param satelliteName display name for logging
+     * @param line1         NORAD TLE line 1
+     * @param line2         NORAD TLE line 2
+     * @throws org.orekit.errors.OrekitException if the TLE cannot be parsed
+     */
     public void updateTle(final String satelliteName, final String line1, final String line2) {
         final var tle = new TLE(line1, line2);
         final var propagator = TLEPropagator.selectExtrapolator(tle);
@@ -73,6 +91,11 @@ public class OrbitPropagationService {
                 satelliteName, tle.getDate(), propagator.getClass().getSimpleName());
     }
 
+    /**
+     * Propagates the active TLE to the current wall-clock instant, converts
+     * the resulting spacecraft position to geodetic coordinates, and transmits
+     * a CCSDS telemetry packet. Invoked every second by Spring's scheduler.
+     */
     @Scheduled(fixedRate = 1000)
     public void propagateAndSend() {
         final var propagator = activePropagator.get();
