@@ -13,6 +13,7 @@ import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
+import java.util.HexFormat;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -92,6 +93,13 @@ public class CcsdsTelemetrySender {
             final var data = buffer.array();
             final var packet = new DatagramPacket(data, data.length, address, port);
             socket.send(packet);
+            final var hexFmt = HexFormat.ofDelimiter(" ");
+            final var hdrHex = hexFmt.formatHex(data, 0, CCSDS_HEADER_LENGTH);
+            final var payloadHex = hexFmt.formatHex(data, CCSDS_HEADER_LENGTH, TOTAL_LENGTH);
+            log.debug("TX CCSDS [APID={}, SEQ={}, {} bytes] → {}:{} | lat={}, lon={}, alt={} km\n"
+                            + "         HDR: [{}]  DATA: [{}]",
+                    APID, seqCount, data.length, host, port, lat, lon, alt,
+                    hdrHex, payloadHex);
         } catch (final IOException e) {
             log.error("Failed to transmit CCSDS packet: {}", e.getMessage());
         }
