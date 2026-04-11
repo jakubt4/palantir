@@ -62,7 +62,7 @@ The programme explicitly lists the following priorities — items in **bold** ar
 ### Previous Winners — What the Jury Rewards
 | Year | Winner | Theme |
 |---|---|---|
-| 2026 (R4) | **Aerostacks** | Avalanche risk prediction via remote sensing + AI |
+| 2025 (R4) | **Aerostacks** | Avalanche risk prediction via remote sensing + AI |
 | 2024 (R3) | **Datafrost Space** | Marketplace connecting satellite data users and providers |
 | 2023 (R2) | **Straton** | Autonomous glider for stratospheric probe recovery |
 | 2022 (R1) | **SpaceScavengers** | Multi-agent systems for space debris management |
@@ -76,7 +76,7 @@ The programme explicitly lists the following priorities — items in **bold** ar
 ### Strategic Fit
 1. **It has a working prototype, not just a slide deck.** The programme does not require this — but it is a strong differentiator. A live demo with real telemetry streaming in 60 seconds is more persuasive than any pitch.
 2. **It addresses a real commercial gap.** Legacy ground segment systems (SCOS-2000, EPOCH) are proprietary and expensive; Yamcs on its own is just the core — Palantir adds the physics-driven digital twin layer and a GSaaS-ready deployment model.
-3. **Mega-constellations = data deluge problem.** Spring Boot 3.2 + Java 21 Virtual Threads enable concurrent telemetry propagation for 10,000+ satellites on a single COTS server. This is directly "Killer Feature B" from `FEATURES_v2.md`.
+3. **Mega-constellations = data deluge problem.** Java 21 provides two independent scaling axes for Palantir: Virtual Threads for thousands of concurrent blocking I/O operations (per-satellite UDP downlinks, per-satellite TC listeners) and multi-core platform-thread CPU parallelism for SGP4/SDP4 propagation (which is CPU-bound). Combined, both support projected scaling towards ~10,000 satellites on a single 16-core COTS server — subject to empirical benchmarking as part of the Feature B roadmap. This is directly **Killer Feature B** from `FEATURES_v2.md`.
 4. **The ESA BIC path is explicit.** The programme positions itself as "validation before ESA BIC." Palantir is exactly the profile of project BIC looks for (technical foundation + commercialisation potential in GSaaS).
 5. **Student-ready scale-up plan.** The 13-ticket backlog in `FEATURE-v2-ext.md` demonstrates that the project can absorb student/junior contributors and generate deployable artefacts — precisely the kind of scaling Spaceport_SK values.
 
@@ -122,6 +122,7 @@ Everything runs in a single `docker compose up --build`. That is **the critical 
 - **`UdpCommandReceiver`** in Spring Boot listens on UDP 10001 in a Java 21 Virtual Thread executor.
 - **Opcode dispatch:** 0x01=PING, 0x02=REBOOT_OBC, 0x03=SET_TRANSMIT_POWER (the last one in code only, not yet in the XTCE MDB).
 - An operator clicks a button in the Yamcs web UI → the packet reaches Spring Boot logs via 2 hops in under 10 ms.
+- **Design note — asymmetric CCSDS framing:** the TM downlink is fully CCSDS 133.0-B-1 compliant (Primary Header, APID 100, IEEE 754 big-endian payload). The TC uplink is deliberately a minimalist 1-byte opcode protocol over UDP — the XTCE `CommandContainer` defines only a uint8 `OpCode` argument with no CCSDS Primary Header inheritance, so Yamcs `StreamTcCommandReleaser` emits exactly 1 byte and Spring Boot reads it as `data[0]`. Full CCSDS TC Space Packet framing (Primary Header + APID 101 + Seq Flags + a dedicated `CcsdsTelecommandParser` in Spring Boot) is an explicit Phase 3b roadmap item — not a bug, but a deliberate PoC scope decision to accelerate the bidirectional loop.
 
 #### Engineering Quality
 - **Java 21** with `spring.threads.virtual.enabled=true` (Project Loom).
@@ -133,7 +134,7 @@ Everything runs in a single `docker compose up --build`. That is **the critical 
 - **Javadoc across all main classes** (recent commit `4f9d189`).
 
 ### What This Means for the Pitch
-The prototype is a **production-grade PoC**, not an academic script. It compiles, runs, has tests, is documented, uses a real-world protocol (CCSDS), and a real-world mission control system (Yamcs — used by ESA, EUMETSAT, and DLR). That is exactly what the jury needs to see in the first 60 seconds.
+The prototype is a **reference implementation**, not an academic script. It compiles, runs, has a baseline test suite, is documented, and uses a real-world protocol (CCSDS 133.0-B-1) and a real-world open-source mission control system (Yamcs — used by selected ESA small-sat programmes such as SmallGEO, and by several commercial NewSpace operators). That is exactly what the jury needs to see in the first 60 seconds.
 
 ---
 
@@ -148,9 +149,9 @@ The prototype is a **production-grade PoC**, not an academic script. It compiles
   - `CHAOS_MONKEY` fault injection → simulated subsystem failure (e.g. battery voltage → 0 V).
 
 ### Killer Features from `FEATURES_v2.md`
-1. **Feature A — Predictive Orbital Shadowing (The True Digital Twin).** The Orekit engine runs in parallel with an ideal model; Yamcs compares Δ against live TM and triggers a `ParameterAlarm` before a catastrophic failure occurs. This is the **only genuine digital twin feature** — other systems merely visualise incoming data.
-2. **Feature B — Virtual Thread Matrix.** Transition from native OS threads to Java 21 Virtual Threads → 10,000+ concurrent TLE propagators on a single COTS server. A direct answer to the mega-constellation data deluge problem.
-3. **Feature C — Closed-Loop Command Verification (FinTech-grade).** A cryptographic handshake: a command is not marked `COMPLETED` until an ACK arrives from the OBC. Mandatory for ESA institutional operations. This is the "cyber-resilience" angle that jurors care about.
+1. **Feature A — Predictive Orbital Shadowing (Model Residual Fault Detection).** The Orekit engine runs in parallel with live telemetry — an ideal orbit state is predicted continuously, Yamcs compares Δ between simulated and received position, and a `ParameterAlarm` triggers when the threshold is exceeded (typically excessive drag residual, an unexpected manoeuvre, or catastrophic orbit decay). This is an application of the standard digital-twin residual-based fault detection pattern to the orbit subsystem — the first open-source GSaaS to wire this directly into the Yamcs `ParameterAlarm` pipeline. Scope is orbit dynamics, not attitude/power/thermal (those are covered in the Epic 3-4 backlog).
+2. **Feature B — Multi-Axis Scaling.** Java 21 enables combining two orthogonal scaling strategies: Virtual Threads for thousands of concurrent per-satellite blocking I/O loops (UDP sockets, REST listeners) and multi-core platform-thread parallelism for CPU-bound SGP4/SDP4 propagation. Target: projected scaling towards ~10,000 satellites on a single 16-core COTS server, verified by empirical benchmarking. Directly addresses the mega-constellation data deluge without requiring horizontal scale-out in the first phase.
+3. **Feature C — Closed-Loop Command Verification.** A bidirectional ACK handshake: a command is not marked `COMPLETED` in the MDB until a confirming telemetry packet arrives from the OBC, validated through an XTCE `ManualVerifier` + `TransmissionConstraint` gate. Eliminates "blind commanding" — the mandatory pattern for ESA institutional operations and for safety-critical COLA procedures. A follow-up in the long-term backlog is CCSDS SDLS HMAC-SHA256 authentication of TC packets for full cyber-resilience.
 
 ### Student Scale-Up (from `FEATURE-v2-ext.md`)
 6-month programme, 2 students, 13 tickets, producing a portfolio of deployable artefacts:
@@ -252,7 +253,7 @@ Legacy ground segment systems (SCOS-2000, EPOCH, open-source OpenC3) either cost
 - **Open-core SaaS:** core is open-source, plugins and enterprise support are commercial (Red Hat / Grafana Labs model).
 - **Per-satellite GSaaS licensing** ($/sat/month) via cloud hosting.
 - **Consulting + integration** for institutional customers (SARIO / Ministry of Defence / national agencies).
-- **ESA BIC startup runway** — €50k business support + €200k validation funding (exact figures for ESA BIC Slovakia to be verified in Phase 2).
+- **ESA BIC startup runway** — ~€50k direct financial support (grant or zero-interest loan depending on the specific BIC) + significant in-kind services (technical support, facility access, mentoring, IPR advice). Exact terms and figures for ESA BIC Slovakia TBD in Phase 2 of the programme — do not conflate direct financing with in-kind valuation in investor pitches.
 
 ### Differentiators vs. the Competition
 | Capability | Palantir | SCOS-2000 | OpenC3 | AWS Ground Station |
@@ -291,12 +292,12 @@ The programme has two presentation opportunities:
 
 ### Three-Sentence Project Description (for the "short project description" field)
 
-> Palantir is an open-source Ground Segment as a Service Digital Twin that combines the Orekit astrodynamics simulation with the Yamcs mission control system via the CCSDS 133.0-B-1 protocol and Java 21 Virtual Threads — a functional prototype with a bidirectional TM/TC link is available at [github.com/jakubt4/palantir] and can be launched with a single `docker compose up`. The goal is to build a scalable, cloud-native alternative to expensive legacy systems (SCOS-2000, EPOCH) for NewSpace operators of small-sat mega-constellations, with three unique properties: predictive orbital shadowing (true digital twin), 10,000+ satellite propagation on a single COTS server, and closed-loop cryptographic command verification. Within Spaceport_SK, I intend to validate the go-to-market strategy, progress through the ESA BIC pipeline, and scale development via a 6-month 13-ticket integration programme for 2 junior students.
+> **Palantir** is an open-source Ground Segment as a Service Digital Twin — a functional prototype that bridges Orekit 12.2 astrodynamics (SGP4/SDP4) with the Yamcs mission control system via the CCSDS 133.0-B-1 Space Packet protocol, launches with a single `docker compose up`, and today already delivers hot-swap TLE propagation via REST API, CCSDS telemetry downlink with XTCE decoding into Yamcs parameters, and a bidirectional TM/TC loop. The goal is to build a scalable cloud-native alternative to expensive legacy mission control systems for NewSpace operators of small-sat constellations — the 6-month Spaceport_SK roadmap targets three killer features: predictive orbital fault detection via model residual analysis, horizontal scaling for mega-constellations by combining Java 21 Virtual Threads (concurrent per-satellite I/O) with multi-core platform-thread parallelism (SGP4 CPU compute), and closed-loop command ACK verification through an XTCE `ManualVerifier` safety gate. The concrete Demo Day deliverable (29 September 2026) is an end-to-end Automated Collision Avoidance flow: PAL-501 HPC conjunction assessment against the CelesTrak debris catalogue, PAL-502 `FIRE_THRUSTER` commanding with mandatory operator approval, and a Phase 3b physics reaction where the operator sees a visible orbit change in the Yamcs UI after clicking APPROVE.
 
 ### Team Composition
-- **Core engineer + founder:** myself (Jakub Toth). Background in Java 21, Spring Boot, distributed systems, CCSDS, Orekit.
-- **Planned expansion:** 2 students from **UMB Banská Bystrica**. The project was presented there in early April 2026; as of 2026-04-11 I am awaiting their commitment decision. Primary engagement target: `FEATURE-v2-ext.md` Epic 5 work (PAL-501 pair-programming is explicitly recommended by the backlog).
-- **Advisory:** seeking mentors with a space-sector background via the programme (ideally someone with Yamcs operational experience or ESA BIC exposure).
+- **Jakub Toth** — solo founder and core engineer. Background in Java 21, Spring Boot, distributed systems, CCSDS, Orekit. The sprint plan for the Demo Day target (PAL-501 + PAL-502 + Phase 3b physics reaction) is **viable solo** with the descope strategy defined in Section 5; student involvement accelerates the timeline and deepens scope, but is not a blocker.
+- **Planned expansion** — actively recruiting student contributors from **UMB Banská Bystrica** (project presented in early April 2026, awaiting commitment) for pair-programming on PAL-501 (Epic 5 — HPC Conjunction Assessment). The Demo target holds regardless of the UMB response.
+- **Advisory** — seeking mentors from the space sector via the programme (ideally with Yamcs operational experience or ESA BIC relevance).
 
 ---
 
@@ -307,6 +308,8 @@ The programme has two presentation opportunities:
 2. **The commercialisation path is not fully clarified.** Open-core SaaS is a valid model, but it must be developed much more concretely for Phase 1 (Business Canvas workshop). Early validation from 2–3 potential customers is needed BEFORE the programme.
 3. **The student scale-up plan is ambitious.** Can I realistically onboard 2 students under these conditions? The UMB Banská Bystrica presentation happened in early April 2026 — awaiting their response. The solo fallback plan must remain viable (see Section 5, subsection *Concrete Demo Day 2026 Target*).
 4. **Team = solo founder.** The programme does not block this, but mentors often push for "co-founder search." Prepare a clear answer for why solo is appropriate at this stage.
+5. **August holiday gap.** Sprint 5 (August) falls into the traditional EU/SK holiday month. If UMB students join, part of their capacity will be unavailable; the user must also explicitly guard against losing the month personally. Mitigation: pull-in critical Sprint 5 tasks into July (Sprint 4); hard-deadline for Phase 3b wiring no later than 25 August.
+6. **Sprint 6 (September) has no real buffer.** Demo Day is 29 September and Advisory Board feedback also lands in September. If Sprint 5 slips, September is not a "buffer phase" — it is the only integration + rehearsal window. Mitigation: a Critical Gate review on 1 September (end-to-end demo on a clean `docker compose up` from `master`); if the gate fails, activate the emergency descope plan.
 
 ### Open Questions
 - [ ] Verify the exact ESA BIC Slovakia conditions and figures (financial support, equity, deadlines).
