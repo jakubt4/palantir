@@ -1,3 +1,9 @@
+# [RETIRED] Project Palantir: Core Features & Architectural Roadmap
+
+> **This document is retired.** It has been superseded by `FEATURES.md`. The "Killer Features" narrative below (Predictive Orbital Shadowing, Virtual Thread Matrix, Closed-Loop Command Verification) is preserved for the ESA BIC pitch storyline but is **not** the active engineering roadmap. See `FEATURES.md` §6 (Phase F) for the deferred-future treatment of these items, and §8 for technical corrections.
+
+---
+
 # Project Palantir: Core Features & Architectural Roadmap
 
 This document defines the core features and architectural objectives of Project Palantir. The system is engineered as an **Orbital Digital Twin**, enforcing strict High-Availability (HA) standards derived from the Telco/FinTech sectors. It is designed for Ground Segment as a Service (GSaaS) deployment within the commercial NewSpace ecosystem and satellite mega-constellations.

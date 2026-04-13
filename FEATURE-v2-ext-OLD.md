@@ -1,3 +1,21 @@
+# [RETIRED] Project Palantir: Student Integration Backlog
+
+> **This document is retired.** It has been superseded by `FEATURES.md`, which is now the single source of truth for execution order, technical contracts, and acceptance criteria.
+>
+> **Known issues with this older revision** (all corrected in `FEATURES.md`; full delta in `FEATURES.md` §8):
+>
+> 1. **PAL-502** references a Yamcs `ManualVerifier` XTCE element that does not exist. Manual command release in Yamcs is implemented via command **significance** + a **command queue with `minLevel: critical`** in manual-release mode, not via a fictional verifier element.
+> 2. The "CCSDS 133.0-B-1" citation predates the current Blue Book — **CCSDS 133.0-B-2 (June 2020)** is the active issue. The 6-byte Primary Header wire format is unchanged, so existing encoders remain compliant.
+> 3. **PAL-403** cites "ECSS-Q-ST-80C compliance"; the current standard is **ECSS-Q-ST-80C Rev.2 (30 April 2025)**, which cancels and replaces Rev.1 (2017).
+> 4. **PAL-403** specifies Testcontainers `DockerComposeContainer` (Compose V1, deprecated). New work must use `ComposeContainer` (Compose V2).
+> 5. **PAL-501** assumes the CelesTrak GP catalog is forever in TLE format. NORAD 5-digit catalog numbers exhaust around **2026-07-20**, after which OMM (XML) is the only forward-compatible format.
+> 6. **PAL-202** defaults to a Košice ground station; the project's UMB / Banská Bystrica student recruitment context calls for **Banská Bystrica (`48.7363°N, 19.1462°E, 346 m`)** as the default. The geometry is unchanged.
+> 7. **Phase 3b "Thrust Maneuver"** does not specify the post-impulse propagator handoff. After an impulsive Δv, TLE mean elements no longer represent the orbit; the propagator must transition from `TLEPropagator` (SGP4) to a `NumericalPropagator` (point-mass + J₂).
+>
+> Read this document for ticket-level scope and acceptance criteria, but trust `FEATURES.md` whenever the two disagree.
+
+---
+
 # Project Palantir: Student Integration Backlog
 
 ## Executive Summary & Pedagogical ROI
