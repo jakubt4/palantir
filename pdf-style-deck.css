@@ -1,0 +1,310 @@
+/* Palantir application deck — 16:9 landscape presentation styling.
+   Designed for ESA / space-industry Advisory Board and academic audiences.
+   Sober palette, clean typography, consistent per-slide visual rhythm. */
+
+/* ---------- Page & base ---------- */
+
+@page {
+  size: 338mm 190mm;
+  margin: 18mm 22mm 20mm 22mm;
+}
+
+body {
+  font-family: -apple-system, "Segoe UI", "Inter", "Noto Sans", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 12pt;
+  line-height: 1.35;
+  color: #0f172a;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ---------- Colour palette (used throughout) ----------
+   --navy:      #0a1a2f  (near-black, primary text / title)
+   --cyan:      #0ea5e9  (accent, secondary headers, bars)
+   --cyan-dark: #0369a1  (hover / darker accent)
+   --slate:     #475569  (secondary text, captions)
+   --grey-100:  #f1f5f9  (code background)
+   --grey-200:  #e2e8f0  (borders, dividers)
+   --grey-50:   #f8fafc  (alt-row backgrounds)
+*/
+
+/* ---------- Slide titles — content slides ---------- */
+
+h1 {
+  font-family: inherit;
+  font-size: 28pt;
+  font-weight: 700;
+  color: #0a1a2f;
+  line-height: 1.1;
+  margin-top: 0;
+  margin-bottom: 14pt;
+  padding: 0 0 8pt 18pt;
+  border-bottom: 2px solid #e2e8f0;
+  border-left: 6px solid #0ea5e9;   /* ESA-style accent bar */
+  page-break-after: avoid;
+  letter-spacing: -0.01em;
+}
+
+/* ---------- Title slide — PALANTIR (first h1) ---------- */
+
+h1:first-of-type {
+  font-size: 60pt;
+  font-weight: 800;
+  color: #0a1a2f;
+  line-height: 1;
+  margin-top: 42mm;        /* push down for vertical-centre effect */
+  margin-bottom: 20pt;
+  padding: 0;
+  border-bottom: none;
+  border-left: none;
+  letter-spacing: -0.03em;
+}
+
+/* Tagline paragraph right after the title slide */
+h1:first-of-type + p {
+  font-size: 18pt;
+  font-weight: 400;
+  color: #334155;
+  line-height: 1.3;
+  margin-top: 0;
+  margin-bottom: 24pt;
+  max-width: 85%;
+}
+
+h1:first-of-type + p strong {
+  font-weight: 500;
+  color: #0a1a2f;
+}
+
+h1:first-of-type + p + p {
+  font-size: 11pt;
+  color: #64748b;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-top: 12pt;
+}
+
+/* ---------- Secondary headings ---------- */
+
+h2 {
+  font-size: 16pt;
+  font-weight: 600;
+  color: #0369a1;
+  margin-top: 10pt;
+  margin-bottom: 5pt;
+  page-break-after: avoid;
+  border-bottom: none;
+}
+
+h3 {
+  font-size: 13pt;
+  font-weight: 600;
+  color: #0369a1;
+  margin-top: 8pt;
+  margin-bottom: 4pt;
+  page-break-after: avoid;
+}
+
+h4 {
+  font-size: 11pt;
+  font-weight: 600;
+  margin-top: 6pt;
+  margin-bottom: 3pt;
+  color: #334155;
+}
+
+/* ---------- Paragraphs & inline ---------- */
+
+p {
+  margin: 6pt 0;
+  orphans: 3;
+  widows: 3;
+  font-size: 12pt;
+}
+
+strong {
+  font-weight: 700;
+  color: #0a1a2f;
+}
+
+em {
+  font-style: italic;
+  color: #334155;
+}
+
+a {
+  color: #0369a1;
+  text-decoration: none;
+  border-bottom: 1px solid #cbd5e1;
+}
+
+/* ---------- Lists ---------- */
+
+ul, ol {
+  margin: 6pt 0;
+  padding-left: 22pt;
+  font-size: 12pt;
+}
+
+li {
+  margin: 4pt 0;
+  line-height: 1.35;
+  page-break-inside: avoid;
+}
+
+li > p {
+  margin: 2pt 0;
+  font-size: 12pt;
+}
+
+li::marker {
+  color: #0ea5e9;
+  font-weight: 700;
+}
+
+ul ul, ol ol, ul ol, ol ul {
+  margin: 2pt 0;
+}
+
+/* ---------- Code ---------- */
+
+code {
+  font-family: "JetBrains Mono", "SF Mono", Menlo, Consolas, "Roboto Mono", monospace;
+  font-size: 10.5pt;
+  background: #f1f5f9;
+  padding: 0.1em 0.4em;
+  border-radius: 3px;
+  border: 1px solid #e2e8f0;
+  color: #0a1a2f;
+}
+
+pre {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid #0ea5e9;
+  border-radius: 4px;
+  padding: 9pt 12pt;
+  overflow-x: auto;
+  page-break-inside: avoid;
+  margin: 8pt 0;
+  line-height: 1.25;
+}
+
+pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 8.5pt;
+  white-space: pre;
+  word-wrap: normal;
+  color: #1e293b;
+}
+
+/* ---------- Blockquotes ---------- */
+
+blockquote {
+  border-left: 5px solid #0ea5e9;
+  background: #f8fafc;
+  margin: 10pt 0;
+  padding: 8pt 14pt;
+  color: #334155;
+  page-break-inside: avoid;
+  border-radius: 0 4px 4px 0;
+  font-size: 11pt;
+}
+
+blockquote p {
+  margin: 3pt 0;
+  font-size: 11pt;
+}
+
+blockquote strong {
+  color: #0a1a2f;
+}
+
+/* ---------- Tables ---------- */
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 10pt 0;
+  font-size: 11.5pt;
+  page-break-inside: auto;
+  border: 1px solid #e2e8f0;
+}
+
+table th {
+  background: #0a1a2f;         /* navy instead of harsh black */
+  color: #f8fafc;
+  font-weight: 600;
+  text-align: left;
+  padding: 7pt 11pt;
+  border: 1px solid #0a1a2f;
+  font-size: 11.5pt;
+  letter-spacing: 0.01em;
+}
+
+table td {
+  padding: 6pt 11pt;
+  border: 1px solid #e2e8f0;
+  vertical-align: top;
+  font-size: 11.5pt;
+}
+
+table tr:nth-child(even) td {
+  background: #f8fafc;
+}
+
+table tr { page-break-inside: avoid; }
+
+/* ---------- Images (slide 6 screenshots) ---------- */
+
+img {
+  max-width: 100%;
+  max-height: 95mm;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(10, 26, 47, 0.08);
+}
+
+/* ---------- Horizontal rule ---------- */
+
+hr {
+  border: none;
+  border-top: 1px solid #e2e8f0;
+  margin: 10pt 0;
+}
+
+/* ---------- Small text / footnotes ---------- */
+
+small {
+  font-size: 9.5pt;
+  color: #64748b;
+  font-style: italic;
+}
+
+/* ---------- Spacing refinements ---------- */
+
+h1 + h2, h2 + h3 {
+  margin-top: 4pt;
+}
+
+h1 + p, h1 + ul, h1 + ol, h1 + pre, h1 + table {
+  margin-top: 6pt;
+}
+
+/* Suppress first-of-type special treatment for content slide starters */
+h1 + p + p {
+  font-size: 12pt;
+  color: #0f172a;
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 400;
+}
