@@ -25,7 +25,7 @@ Telco SDN  ·  FinTech transactional systems
 **Currently shipping:** distributed booking platform with protocol translation
 and a spatial data normalisation engine  *(Coderama, 2022 – current)*
 
-**MSc thesis** (UMB, 2017): C++/OpenMP implementation of a peer-reviewed heavy-ion event-classification method
+**MSc thesis** (UMB, 2017): C++/OpenMP implementation of a peer-reviewed heavy-ion event-classification method — translating published science into working code
 
 ---
 
@@ -38,37 +38,19 @@ and a spatial data normalisation engine  *(Coderama, 2022 – current)*
 | TELCO SDN  *(where I ship)*                | SPACE GROUND SEGMENT                     |
 |--------------------------------------------|------------------------------------------|
 | **YANG**  (RFC 7950)                       | **XTCE**  (CCSDS 660.0-B-2)              |
-| **NETCONF / RESTCONF**  (RFC 6241 / 8040)  | **CCSDS Space Packet**  (CCSDS 133.0-B-2)|
+| **NETCONF / RESTCONF**  (RFC 6241 / 8040)  | **CCSDS Space Packet**  (CCSDS 133.0-B-1)|
 | **OpenDaylight**  (Apache Karaf)           | **Yamcs**  (OSGi-style services)         |
 | Shipped to 99.999% Telco SLAs              | Mission-critical TM/TC loops             |
 
-*Seven years of the left column made the right column look familiar.*
+*Seven of those twelve years in the left column made the right column look familiar.*
 
 <div style="page-break-before: always;"></div>
 
 # What it is
 
-**Three pieces glued together. Fully open-source stack.**
+**Three components, one Docker Compose command. Fully open-source stack.**
 
-```
-   ┌──────────────────┐                       ┌──────────────────┐
-   │  PALANTIR-CORE   │  CCSDS  /  UDP :10000 │ YAMCS (upstream) │
-   │                  │ ────────────────────► │                  │
-   │  Spring Boot 3   │   18-byte Space Pkt   │   Yamcs 5.12     │
-   │  Java 21 / VT    │   APID 100, 1 Hz      │   UdpTmDataLink  │
-   │                  │                       │                  │
-   │  Orekit 12.2     │                       │   XTCE MDB       │
-   │  SGP4 / SDP4     │      UDP :10001       │   Web UI :8090   │
-   │  TEME→ITRF→WGS84 │ ◄──────────────────── │                  │
-   │                  │   Telecommand opcode  │   UdpTcDataLink  │
-   └──────────────────┘                       └──────────────────┘
-             ▲                                          │
-             │  POST /api/orbit/tle                     │  WebSocket
-             │  (hot-swap TLE)                          ▼  live params
-        ┌─────────┐                                ┌─────────┐
-        │ OPERATOR│                                │ BROWSER │
-        └─────────┘                                └─────────┘
-```
+![Palantir architecture — bidirectional CCSDS/UDP between palantir-core and Yamcs](architecture-diagram.png)
 
 <div style="page-break-before: always;"></div>
 
@@ -89,10 +71,9 @@ $ docker compose up --build
 
 **Engineering quality:**
 
-- JUnit 5 / Mockito / AssertJ — unit + Spring slice tests
+- JUnit 5 / Mockito / AssertJ — tests verifying TLE ingestion, orbital propagation plausibility, and Spring context integrity
 - JaCoCo coverage report
 - Javadoc on every main class
-- 4 markdown docs in repo: README · ARCHITECTURE · FLOW · FEATURES
 
 ---
 
@@ -102,19 +83,11 @@ $ docker compose up --build
 
 # What you'll see
 
-| ![Yamcs Web UI — live Palantir parameters](slide5-yamcs-ui.png) | ![palantir-core CCSDS DEBUG log](slide5-ccsds-log.png) |
+| ![Yamcs Web UI — live Palantir parameters](yamcs-live-params.png) | ![palantir-core CCSDS DEBUG log](ccsds-debug-log.png) |
 |:---:|:---:|
 | **Live parameters at 21:24:31 UTC** | **Raw CCSDS Space Packets, 1 Hz cadence** |
 
-**Reading the header bytes**  ( `HDR:  00 64   c0 2c   00 0b` )
-
-```
-00 64    →  APID 100         (big-endian uint16, packet identifier)
-c0 2c    →  grouping flags 11 + 14-bit sequence counter = 44
-00 0b    →  data length = 11 (= payload bytes − 1, so payload is 12 B)
-```
-
-<small>\* `ccsds_seq_count` shows the raw 16-bit field (grouping flags + 14-bit counter), so values > 16383 are expected.</small>
+Standards-compliant CCSDS Space Packets — the same binary protocol used by ESA missions — decoded in real time by Yamcs at 1 Hz cadence. Three orbital parameters (latitude, longitude, altitude) streamed live from SGP4 propagation.
 
 <div style="page-break-before: always;"></div>
 
@@ -123,6 +96,7 @@ c0 2c    →  grouping flags 11 + 14-bit sequence counter = 44
 **The Demo Day target:**
 one end-to-end Automated Collision Avoidance flow,
 live on stage from a clean `$ docker compose up --build`.
+Sequential build: screening first, commanding second, physics reaction last — each layer testable independently.
 
 **1.  CONJUNCTION SCREENING**
 
@@ -142,26 +116,27 @@ live on stage from a clean `$ docker compose up --build`.
 - Ground track visibly shifts within one orbital period
 - *A closed loop, made visible.*
 
+**If time allows beyond the September critical path:** synthetic telemetry generation for anomaly detection experimentation.
+
 <div style="page-break-before: always;"></div>
 
 # What I do not know yet
 
-I built Palantir to test whether twelve years of carrier-grade systems engineering can translate into the space sector. **That is precisely why I am applying.**
+I built Palantir to test whether twelve years of mission-critical systems engineering can translate into the space sector. **That is precisely why I am applying.**
 
 **Two paths I would be happy with, either or both:**
 
-- **Path A — sector transition.** Use the six months as a structured entry into the European space industry. Build the network, understand how operators and integrators hire, and position myself for a role in mission-critical space software.
-- **Path B — own project trajectory.** If Palantir proves viable during the programme, continue it as an independent initiative beyond September. If the traction is real, explore ESA BIC Slovakia or similar incubation as a longer-term step.
+- **Path A — own project trajectory.** If Palantir proves viable during the programme, continue it as an independent initiative beyond September. If the traction is real, explore ESA BIC Slovakia or similar incubation as a longer-term step.
+- **Path B — sector transition.** Use the six months as a structured entry into the European space industry. Build the network, understand how operators and integrators hire, and position myself for a role in mission-critical space software.
 
 **Open questions either path would help me answer:**
 
 - What are the real bottlenecks in European ground segment operations today? Where does the current toolchain break or force manual workarounds?
-- Where does the open-source stack (Yamcs, Orekit, OpenC3) stop short of production needs, and what do teams build around it?
-- Which institutional mission control systems are stuck on legacy tooling, and where is modernisation blocked — by budget, qualification, or risk aversion?
+- Where does the open-source stack (Yamcs, Orekit, OpenC3) stop short of production needs — and where is institutional modernisation blocked by budget, qualification, or risk aversion?
 
-**A stretch ambition, if the programme allows:**
+**What I want to learn from the programme:**
 
-- Synthetic telemetry generation + LSTM autoencoder anomaly detection with ONNX export. Off the September critical path, but a track I would gladly explore.
+I have not done market research yet. I built a working system — whether it has real commercial value as an open-source ground segment product is an open question I want to answer during the programme, with mentor guidance and Advisory Board feedback. If the answer is yes, ESA BIC Slovakia is the natural next step.
 
 **My commitments in return:**
 
