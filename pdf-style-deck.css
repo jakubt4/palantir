@@ -40,8 +40,8 @@ h1 {
   color: #0a1a2f;
   line-height: 1.1;
   margin-top: 0;
-  margin-bottom: 14pt;
-  padding: 0 0 8pt 18pt;
+  margin-bottom: 8pt;
+  padding: 0 0 6pt 18pt;
   border-bottom: 2px solid #e2e8f0;
   border-left: 6px solid #0ea5e9;   /* ESA-style accent bar */
   page-break-after: avoid;
@@ -120,7 +120,7 @@ h4 {
 /* ---------- Paragraphs & inline ---------- */
 
 p {
-  margin: 6pt 0;
+  margin: 4pt 0;
   orphans: 3;
   widows: 3;
   font-size: 12pt;
@@ -204,6 +204,14 @@ pre code {
   color: #1e293b;
 }
 
+/* Architecture diagram — no outer frame, sits flush on slide background, pushed down */
+img[alt*="architecture"] {
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  margin-top: 4mm;
+}
+
 /* ---------- Blockquotes ---------- */
 
 blockquote {
@@ -265,7 +273,7 @@ table tr { page-break-inside: avoid; }
 
 img {
   max-width: 100%;
-  max-height: 95mm;
+  max-height: 120mm;
   object-fit: contain;
   display: block;
   margin: 0 auto;

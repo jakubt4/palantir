@@ -19,10 +19,9 @@ April 2026
 
 # Where this comes from
 
-**12 years mission-critical Java systems engineering**
-Telco SDN  ·  FinTech transactional systems
+**10+ years of mission-critical Java systems engineering:** Telco SDN  ·  FinTech transactional systems
 
-**Currently shipping:** distributed booking platform with protocol translation
+**Currently shipping:** a distributed booking platform with protocol translation
 and a spatial data normalisation engine  *(Coderama, 2022 – current)*
 
 **MSc thesis** (UMB, 2017): C++/OpenMP implementation of a peer-reviewed heavy-ion event-classification method — translating published science into working code
@@ -42,7 +41,7 @@ and a spatial data normalisation engine  *(Coderama, 2022 – current)*
 | **OpenDaylight**  (Apache Karaf)           | **Yamcs**  (OSGi-style services)         |
 | Shipped to 99.999% Telco SLAs              | Mission-critical TM/TC loops             |
 
-*Seven of those twelve years in the left column made the right column look familiar.*
+*Seven of those years in the left column made the right column look familiar.*
 
 <div style="page-break-before: always;"></div>
 
@@ -50,7 +49,7 @@ and a spatial data normalisation engine  *(Coderama, 2022 – current)*
 
 **Three components, one Docker Compose command. Fully open-source stack.**
 
-![Palantir architecture — bidirectional CCSDS/UDP between palantir-core and Yamcs](architecture-diagram.png)
+![Palantir architecture — bidirectional CCSDS/UDP between palantir-core and Yamcs](architecture-diagram.svg)
 
 <div style="page-break-before: always;"></div>
 
@@ -87,7 +86,11 @@ $ docker compose up --build
 |:---:|:---:|
 | **Live parameters at 21:24:31 UTC** | **Raw CCSDS Space Packets, 1 Hz cadence** |
 
-Standards-compliant CCSDS Space Packets — the same binary protocol used by ESA missions — decoded in real time by Yamcs at 1 Hz cadence. Three orbital parameters (latitude, longitude, altitude) streamed live from SGP4 propagation.
+Standards-compliant CCSDS Space Packets — the same binary protocol used by ESA missions — are decoded in real time by Yamcs at 1 Hz cadence. Three orbital parameters (latitude, longitude, altitude) are streamed live from SGP4 propagation.
+
+One header decoded:  `00 64` = APID 100  ·  `c0 2c` = grouping flags + 14-bit counter 44  ·  `00 0b` = data length 11 (payload is 12 B).
+
+<small>\* `ccsds_seq_count` in the UI shows the raw 16-bit field (grouping flags + 14-bit counter), so UI values > 16383 are expected.</small>
 
 <div style="page-break-before: always;"></div>
 
@@ -116,13 +119,13 @@ Sequential build: screening first, commanding second, physics reaction last — 
 - Ground track visibly shifts within one orbital period
 - *A closed loop, made visible.*
 
-**If time allows beyond the September critical path:** synthetic telemetry generation for anomaly detection experimentation.
+**If time allows beyond the September critical path:** synthetic telemetry generation + LSTM autoencoder anomaly detection with ONNX export.
 
 <div style="page-break-before: always;"></div>
 
 # What I do not know yet
 
-I built Palantir to test whether twelve years of mission-critical systems engineering can translate into the space sector. **That is precisely why I am applying.**
+I built Palantir to test whether 10+ years of mission-critical systems engineering can translate into the space sector. **That is precisely why I am applying.**
 
 **Two paths I would be happy with, either or both:**
 
@@ -136,10 +139,10 @@ I built Palantir to test whether twelve years of mission-critical systems engine
 
 **What I want to learn from the programme:**
 
-I have not done market research yet. I built a working system — whether it has real commercial value as an open-source ground segment product is an open question I want to answer during the programme, with mentor guidance and Advisory Board feedback. If the answer is yes, ESA BIC Slovakia is the natural next step.
+Where the open-source ground segment approach has real commercial traction — and where it does not. That answer shapes which of the two paths above I take.
 
 **My commitments in return:**
 
 - **Working prototype available from day one.** Live demo at every Advisory Board checkpoint, on the reviewer's laptop.
 - **All artefacts open-sourced under MIT** — no IP friction, no surprises.
-- **Genuinely open to mentor guidance.** The Automated Collision Avoidance flow is my current plan for Demo Day, but I will adapt direction if Advisory Board feedback points to something stronger.
+- **Genuinely open to mentor guidance.** The Automated Collision Avoidance flow is my current plan for Demo Day, but I will adapt the approach if Advisory Board feedback points to something stronger.
