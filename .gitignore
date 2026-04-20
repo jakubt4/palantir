@@ -8,6 +8,7 @@ target/
 .settings/
 .project
 .classpath
+.theia/
 
 # OS
 .DS_Store
@@ -20,3 +21,13 @@ Thumbs.db
 src/main/resources/orekit-data-main.zip
 .claude/settings.local.json
 nul
+
+# Locally kept docs (untracked from repo, retained on disk)
+FEATURES.pdf
+Palantir_Jakub_Toth_Spaceport_SK_2026.pdf
+SPACEPORT_SK_PITCH.md
+SPACEPORT_SK_PITCH.en.md
+SPACEPORT_SK_PITCH.pdf
+SPACEPORT_SK_PITCH.en.pdf
+SPACEPORT_SK_PITCH_REVIEW.md
+SPACEPORT_SK_PITCH_REVIEW.pdf
