@@ -80,7 +80,7 @@ The following capabilities are in `master` today and must not be regressed. All 
 
   where `R_E ≈ 6371.0 km`. `el` crossing above `el_min` (typically 5°–10°) defines AOS; crossing back below defines LOS. This matches the standard flight-dynamics derivation and is what every operational scheduler implements before moving to a fully ellipsoidal model.
 
-- **Default ground station.** **Banská Bystrica (Univerzita Mateja Bela)** — `48.7363°N, 19.1462°E, 346 m` — the project's default student recruitment source; the station is configurable via CLI for other sites.
+- **Default ground station.** **Banská Bystrica** — `48.7363°N, 19.1462°E, 346 m` — the project's default Slovak ground station; configurable via CLI for other sites.
 - **Definition of done.** `pass_report.csv` with `pass_number, aos_time, los_time, max_elevation_deg, duration_seconds`; `visibility_timeline.png` showing `el(t)` with AOS/LOS markers; validated against ≥ 6 h of archive producing ≥ 2 passes for an ISS-class LEO orbit.
 - **Dependencies.** Palantir Core baseline; at least 6 h of archived telemetry.
 
@@ -261,7 +261,7 @@ The following capabilities are in `master` today and must not be regressed. All 
 
 Items below are on the long-term backlog and are intentionally unsequenced. They are listed in rough order of expected value but are not scheduled against any milestone.
 
-1. **Ground Station Network Service.** Parameterised AOS/LOS scheduler fed by a ground-station inventory (Banská Bystrica UMB, ESA ESTRACK Kiruna/Redu/New Norcia reference data for comparison). Builds on §1.4 PAL-202 geometry with an ellipsoidal Earth model and refraction correction.
+1. **Ground Station Network Service.** Parameterised AOS/LOS scheduler fed by a ground-station inventory (Banská Bystrica, ESA ESTRACK Kiruna/Redu/New Norcia reference data for comparison). Builds on §1.4 PAL-202 geometry with an ellipsoidal Earth model and refraction correction.
 2. **CCSDS SDLS (Space Data Link Security).** HMAC authentication on telecommand packets per CCSDS 355.0-B-2. Threat model to be documented before any implementation; SDLS is non-trivial and should not be built without a real adversary model.
 3. **Multi-satellite constellation support.** Replace the single `AtomicReference<TLEPropagator>` with a keyed map and per-spacecraft APIDs. Virtual Thread per spacecraft already maps cleanly onto this.
 4. **Kubernetes / Helm chart deployment.** Replace `docker compose` with a Helm chart for multi-tenant GSaaS operation. Horizontal scaling applies only to the propagation tier; Yamcs is a singleton per instance.
@@ -320,7 +320,7 @@ The following technical items have been **corrected** in this revision relative 
 | 4 | "CelesTrak GP catalog in CSV / TLE format only" (old PAL-501) | CelesTrak 5-digit NORAD numbers exhaust ≈ 2026-07-20; new objects use 6-digit numbers that cannot be encoded as TLE. OMM (XML) is the forward-compatible format. | §4.1 PAL-501 defaults to OMM with `--catalog-format` override. |
 | 5 | "Testcontainers `DockerComposeContainer`" (old PAL-403) | V1-only and deprecated; Testcontainers 2.x uses `ComposeContainer` against Compose V2. | §3.3 PAL-403 specifies `ComposeContainer`. |
 | 6 | "Pitch = `asin(2·(q0·q2 − q3·q1))`" (old PAL-401) | Mathematically equivalent to `asin(2·(q0·q2 − q1·q3))` — the form used here — but I standardise on the Wikipedia-canonical ordering to make the gimbal-lock guard condition cleaner to read. Verbatim checked against Wikipedia "Conversion between quaternions and Euler angles". | §3.1 PAL-401 uses the canonical form and adds the `|2·(q0·q2 − q1·q3)| ≥ 1 − 10⁻⁶` guard. |
-| 7 | Default ground station "Košice, 48.7164°N, 21.2611°E, 206 m" (old PAL-202) | Arbitrary choice not aligned with the project's UMB / Banská Bystrica student recruitment context. | §1.4 PAL-202 defaults to Banská Bystrica (UMB) `48.7363°N, 19.1462°E, 346 m`; station remains configurable. |
+| 7 | Default ground station "Košice, 48.7164°N, 21.2611°E, 206 m" (old PAL-202) | Arbitrary choice; Banská Bystrica is the project's default Slovak ground station. | §1.4 PAL-202 defaults to Banská Bystrica `48.7363°N, 19.1462°E, 346 m`; station remains configurable. |
 | 8 | "Yamcs health check implies processor ready" (old PAL-403) | `GET /api/` returns 200 before the realtime processor has subscribed to `tm_realtime`. | §3.3 PAL-403 adds the secondary `"state": "RUNNING"` readiness poll. |
 | 9 | "AOS/LOS uses elevation = `arctan((cos γ − R/(R+h)) / sin γ)`" (old PAL-202) | Correct, but `arctan` loses sign information; swapped to `atan2` form to handle the full range cleanly. | §1.4 PAL-202 uses `atan2( cos γ − R/(R+h), sin γ )`. |
 | 10 | "Post-FIRE_THRUSTER propagation remains on SGP4 TLE" (implicit in old docs) | TLE mean elements no longer represent the orbit after an impulsive manoeuvre; the propagator must switch to a numerical model. | §4.3 Phase 3b prescribes the post-manoeuvre handoff to a `NumericalPropagator` with point-mass + J₂. |
@@ -368,7 +368,7 @@ All technical claims in §0–§6 have been cross-checked against the authoritat
 
 **Ground-station geodesy**
 
-- Banská Bystrica coordinates `48.7363°N, 19.1462°E, 346 m` — used as the default ground station in §1.4 to reflect the project's UMB recruitment context.
+- Banská Bystrica coordinates `48.7363°N, 19.1462°E, 346 m` — used as the default ground station in §1.4.
 
 ---
 
