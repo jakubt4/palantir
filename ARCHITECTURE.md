@@ -51,7 +51,10 @@ palantir/
     │   ├── yamcs.palantir.yaml
     │   └── yamcs.yaml
     └── mdb/
-        └── palantir.xml
+        ├── baseline.xml
+        ├── features/
+        │   └── commands.xml
+        └── README.md
 ```
 
 ---
@@ -187,8 +190,9 @@ COPY etc/yamcs.yaml /opt/yamcs/etc/yamcs.yaml
 COPY etc/yamcs.palantir.yaml /opt/yamcs/etc/yamcs.palantir.yaml
 COPY etc/processor.yaml /opt/yamcs/etc/processor.yaml
 
-# Inject the XTCE Mission Database
-COPY mdb/palantir.xml /opt/yamcs/mdb/palantir.xml
+# Inject the XTCE Mission Database (baseline + per-feature files)
+COPY mdb/baseline.xml /opt/yamcs/mdb/baseline.xml
+COPY mdb/features/ /opt/yamcs/mdb/features/
 
 EXPOSE 8090
 EXPOSE 10000/udp
@@ -288,8 +292,11 @@ dataLinks:
     port: 10001
 
 mdb:
-  - type: "xtce"
-    spec: "mdb/palantir.xml"
+  - type: xtce
+    spec: mdb/baseline.xml
+    subLoaders:
+      - {type: xtce, spec: mdb/features/nav.xml}
+      - {type: xtce, spec: mdb/features/commands.xml}
 
 streamConfig:
   tm:
@@ -333,7 +340,11 @@ ArchiveRetrieval:
     - class: org.yamcs.tctm.ReplayService
 ```
 
-### `yamcs/mdb/palantir.xml` — XTCE Mission Database
+### `yamcs/mdb/` — XTCE Mission Database (baseline + features split)
+
+The MDB is split across `baseline.xml` (SpaceSystem `Palantir` — CCSDS primitives and nav TM) and per-feature files under `features/`. Yamcs loads feature files as **nested SpaceSystems** under `/Palantir` via `mdb.subLoaders` in `yamcs.palantir.yaml` — each file declares its own unique SpaceSystem name (same-name collisions raise `IllegalArgumentException`). Nested SpaceSystems resolve baseline types by simple name through the XTCE scope chain. See `yamcs/mdb/README.md` for the extension pattern.
+
+#### `yamcs/mdb/baseline.xml`
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -881,7 +892,8 @@ yamcs:
 │  │ Yamcs 5.12.2 (Docker)                                         │
 │  │  UdpTmDataLink(:10000) → GenericPacketPreprocessor            │
 │  │  → tm_realtime stream → StreamTmPacketProvider                │
-│  │  → XTCE MDB (palantir.xml) → Latitude/Longitude/Altitude     │
+│  │  → XTCE MDB (baseline.xml — SpaceSystem "Palantir")          │
+│  │  → Latitude / Longitude / Altitude                           │
 │  │  → HttpServer(:8090) → WebSocket → Browser                   │
 │  └────────────────────────────────────────────────────────────────┘
 │                                                                     │

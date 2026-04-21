@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Palantir MDB baseline — root SpaceSystem "Palantir" for the spacecraft bus.
+
+  Holds:
+    - CCSDS 133.0-B-2 Primary Header primitives (uint16_t, ccsds_* params,
+      abstract CCSDS_Packet_Base SequenceContainer)
+    - Core nav telemetry — Latitude / Longitude / Altitude (IEEE 754 float32,
+      APID = 100) produced at 1 Hz by OrbitPropagationService
+
+  Feature files under yamcs/mdb/features/ declare their own SpaceSystems
+  (TC, future payloads like EnvPayload / Propulsion / Attitude) and are
+  nested under /Palantir/ by Yamcs via mdb.subLoaders in yamcs.palantir.yaml.
+  Nested SpaceSystems resolve parent types by simple name through the
+  XTCE scope chain — no qualified paths needed from children.
+
+  See yamcs/mdb/README.md for the extension pattern.
+-->
+<SpaceSystem name="Palantir"
+             xmlns="http://www.omg.org/spec/XTCE/20180204"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="http://www.omg.org/spec/XTCE/20180204 https://www.omg.org/spec/XTCE/20180204/SpaceSystem.xsd">
+
+    <TelemetryMetaData>
+        <ParameterTypeSet>
+
+            <IntegerParameterType name="uint16_t" signed="false" sizeInBits="16">
+                <IntegerDataEncoding sizeInBits="16" encoding="unsigned" byteOrder="mostSignificantByteFirst"/>
+            </IntegerParameterType>
+
+            <FloatParameterType name="float32_t" sizeInBits="32">
+                <UnitSet><Unit>deg</Unit></UnitSet>
+                <FloatDataEncoding sizeInBits="32" encoding="IEEE754_1985" byteOrder="mostSignificantByteFirst"/>
+            </FloatParameterType>
+
+            <FloatParameterType name="distance_t" sizeInBits="32">
+                <UnitSet><Unit>km</Unit></UnitSet>
+                <FloatDataEncoding sizeInBits="32" encoding="IEEE754_1985" byteOrder="mostSignificantByteFirst"/>
+            </FloatParameterType>
+
+        </ParameterTypeSet>
+
+        <ParameterSet>
+            <Parameter name="ccsds_packet_id" parameterTypeRef="uint16_t"/>
+            <Parameter name="ccsds_seq_count" parameterTypeRef="uint16_t"/>
+            <Parameter name="ccsds_length" parameterTypeRef="uint16_t"/>
+
+            <Parameter name="Latitude" parameterTypeRef="float32_t">
+                <ShortDescription>Satellite Geodetic Latitude</ShortDescription>
+            </Parameter>
+            <Parameter name="Longitude" parameterTypeRef="float32_t">
+                <ShortDescription>Satellite Geodetic Longitude</ShortDescription>
+            </Parameter>
+            <Parameter name="Altitude" parameterTypeRef="distance_t">
+                <ShortDescription>Satellite Altitude above Ellipsoid</ShortDescription>
+            </Parameter>
+        </ParameterSet>
+
+        <ContainerSet>
+
+            <SequenceContainer name="CCSDS_Packet_Base" abstract="true">
+                <EntryList>
+                    <ParameterRefEntry parameterRef="ccsds_packet_id"/>
+                    <ParameterRefEntry parameterRef="ccsds_seq_count"/>
+                    <ParameterRefEntry parameterRef="ccsds_length"/>
+                </EntryList>
+            </SequenceContainer>
+
+            <SequenceContainer name="Palantir_Nav_Packet">
+                <BaseContainer containerRef="CCSDS_Packet_Base">
+                    <RestrictionCriteria>
+                        <Comparison parameterRef="ccsds_packet_id" value="100" useCalibratedValue="false"/>
+                    </RestrictionCriteria>
+                </BaseContainer>
+
+                <EntryList>
+                    <ParameterRefEntry parameterRef="Latitude"/>
+                    <ParameterRefEntry parameterRef="Longitude"/>
+                    <ParameterRefEntry parameterRef="Altitude"/>
+                </EntryList>
+            </SequenceContainer>
+
+        </ContainerSet>
+    </TelemetryMetaData>
+</SpaceSystem>

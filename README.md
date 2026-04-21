@@ -296,7 +296,10 @@ palantir/
     │   ├── yamcs.palantir.yaml               # Instance — UdpTmDataLink, UdpTcDataLink, GenericPacketPreprocessor, stream→processor mapping
     │   └── processor.yaml                    # Processor — StreamTmPacketProvider, StreamTcCommandReleaser, StreamParameterProvider, archives
     └── mdb/
-        └── palantir.xml                      # XTCE — CCSDS containers (APID=100 TM), PING + REBOOT_OBC commands
+        ├── baseline.xml                      # SpaceSystem "Palantir" — CCSDS primitives + nav TM (APID=100)
+        ├── features/
+        │   └── commands.xml                  # SpaceSystem "TC" nested at /Palantir/TC — PING + REBOOT_OBC
+        └── README.md                         # Pattern: add new features as features/*.xml + subLoaders entry
 ```
 
 ## Yamcs Configuration
@@ -310,7 +313,7 @@ The Yamcs instance `palantir` is configured as follows:
 | **Preprocessor** | `GenericPacketPreprocessor` | Extracts sequence count, assigns local generation time |
 | **TM Processor** | `StreamTmPacketProvider` | Subscribes to `tm_realtime` stream, feeds packets into XTCE decoder for realtime parameter extraction |
 | **TC Releaser** | `StreamTcCommandReleaser` | Releases commands from the realtime processor to `tc_realtime` stream |
-| **MDB** | XTCE `palantir.xml` | Decodes CCSDS containers by APID, extracts IEEE 754 floats; defines PING and REBOOT_OBC telecommands |
+| **MDB** | XTCE `baseline.xml` + `features/*.xml` | `baseline.xml` (SpaceSystem `Palantir`) holds CCSDS primitives and nav telemetry (APID 100 → Latitude/Longitude/Altitude); `features/commands.xml` (SpaceSystem `TC` nested at `/Palantir/TC`) holds PING and REBOOT_OBC |
 | **Archive** | `XtceTmRecorder` + `ParameterRecorder` | Persists raw TM frames and decoded parameter values |
 | **Processor** | `StreamParameterProvider` | Routes processed parameters to the realtime processor cache |
 

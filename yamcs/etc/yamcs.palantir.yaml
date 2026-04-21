@@ -28,8 +28,10 @@ dataLinks:
     port: 10001
 
 mdb:
-  - type: "xtce"
-    spec: "mdb/palantir.xml"
+  - type: xtce
+    spec: mdb/baseline.xml
+    subLoaders:
+      - {type: xtce, spec: mdb/features/commands.xml}
 
 streamConfig:
   tm:

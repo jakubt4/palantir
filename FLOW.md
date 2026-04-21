@@ -281,7 +281,7 @@ Bit:  31       30..23          22..0
 For example, latitude 51.64 degrees is stored as `0x424E8F5C` (4 bytes).
 
 **Why `float` and not `double`?** To match the XTCE definition in
-`yamcs/mdb/palantir.xml`, which declares `FloatDataEncoding sizeInBits="32"`.
+`yamcs/mdb/baseline.xml`, which declares `FloatDataEncoding sizeInBits="32"`.
 Both sides must agree on the encoding.
 
 ### Sending the packet
@@ -313,7 +313,7 @@ Yamcs runs the packet through `GenericPacketPreprocessor` which:
 - Skips error detection (`errorDetection: type: NONE`) — our packets have no
   CRC/checksum.
 
-### 4.3 XTCE Mission Database (palantir.xml)
+### 4.3 XTCE Mission Database (baseline.xml)
 
 The packet enters the MDB (Mission Database) pipeline. Yamcs matches it against
 XTCE container definitions:
@@ -392,7 +392,7 @@ POST /api/orbit/tle
    ```java
    final var opCode = data[0];  // first byte of the UDP payload
    ```
-   The XTCE command definition (`palantir.xml`) encodes each command as a single
+   The XTCE command definition (`yamcs/mdb/features/commands.xml`) encodes each command as a single
    `uint8` argument called `OpCode`:
    - `0x01` = PING / NOOP — do nothing, just acknowledge receipt
    - `0x02` = REBOOT_OBC — triggers `triggerRebootSequence()` (currently just a log)

@@ -18,7 +18,7 @@ The following capabilities are in `master` today and must not be regressed. All 
 | CCSDS Space Packet encoding (18 B) | `CcsdsTelemetrySender` — 6 B Primary Header + 12 B payload (3× IEEE 754 big-endian float), 14-bit `AtomicInteger` sequence counter, `APID = 100` | Hex dump logged on every `DEBUG` TX; wire-compatible with CCSDS 133.0-B-2 Primary Header (§9) |
 | UDP downlink to Yamcs | `DatagramSocket` → `palantir-yamcs:10000/udp` via Docker DNS | Parameters `/Palantir/Latitude`, `/Palantir/Longitude`, `/Palantir/Altitude` update live in Yamcs Web UI |
 | UDP uplink (telecommand receive) | `UdpCommandReceiver` — Virtual Thread executor bound on `palantir.uplink.port` (default 10001); opcode dispatch for `0x01` PING, `0x02` REBOOT_OBC, `0x03` SET_TRANSMIT_POWER | Test-profile binds to `port=0` (ephemeral) to avoid CI conflicts |
-| Yamcs instance `palantir` | `UdpTmDataLink` (:10000), `UdpTcDataLink` → `palantir-core:10001`, `GenericPacketPreprocessor` with `seqCountOffset=2` and `useLocalGenerationTime=true`, `StreamTmPacketProvider` + `StreamParameterProvider` + `StreamTcCommandReleaser` on `realtime` processor | XTCE MDB `yamcs/mdb/palantir.xml` decodes `Palantir_Nav_Packet` (APID = 100) into three float32 parameters |
+| Yamcs instance `palantir` | `UdpTmDataLink` (:10000), `UdpTcDataLink` → `palantir-core:10001`, `GenericPacketPreprocessor` with `seqCountOffset=2` and `useLocalGenerationTime=true`, `StreamTmPacketProvider` + `StreamParameterProvider` + `StreamTcCommandReleaser` on `realtime` processor | XTCE MDB split across `yamcs/mdb/baseline.xml` (SpaceSystem `Palantir` — CCSDS primitives + APID 100 nav packet → three float32 parameters) and `yamcs/mdb/features/commands.xml` (SpaceSystem `TC` nested at `/Palantir/TC` — bus commands) |
 | XTCE commands | `PING` (OpCode `0x01`), `REBOOT_OBC` (OpCode `0x02`) | Round-trip validated: Yamcs Web UI → `UdpTcDataLink` → `UdpCommandReceiver` logs `[COMMAND RECEIVED]` |
 | Containerized stack | `docker compose up --build` — `yamcs` (healthcheck on `GET /api/`) + `palantir-core` (`depends_on: service_started`, not `service_healthy`, to avoid permanent DNS-resolution failure on `UdpTcDataLink` init) | Named volume `palantir_yamcs_data` persists the archive |
 | Test coverage | JUnit 5 + Mockito + AssertJ — `TleIngestionControllerTest` (`@WebMvcTest`), `OrbitPropagationServiceTest` (`@SpringBootTest` + `ArgumentCaptor<Float>` physical-bounds assertions), `PalantirApplicationTests` (context load) | `mvn test` green; JaCoCo report at `target/site/jacoco/index.html` |
@@ -56,7 +56,7 @@ The following capabilities are in `master` today and must not be regressed. All 
 
 - **Objective.** Web panel that issues `PING` and `REBOOT_OBC` via the Yamcs REST commanding API and displays command history.
 - **Technical contract.**
-  - Issue command: `POST /api/processors/palantir/realtime/commands/Palantir/{commandName}` with an empty JSON argument body (both commands have fixed `initialValue` opcodes already declared in `palantir.xml`).
+  - Issue command: `POST /api/processors/palantir/realtime/commands/Palantir/TC/{commandName}` with an empty JSON argument body (both commands have fixed `initialValue` opcodes already declared in `yamcs/mdb/features/commands.xml`; the `/Palantir/TC/` prefix reflects the nested SpaceSystem path).
   - History: `GET /api/archive/palantir/commands` returns command records with `commandId`, `generationTime`, `commandName`, `assignments`, and a `status` field that transitions `QUEUED → RELEASED → SENT` under the current (baseline) configuration — there is no closed-loop verifier yet, so terminal state is `SENT`, not `COMPLETED`.
   - CORS is already enabled in `yamcs.yaml` (`allowOrigin: "*"`) — no proxy is needed for local development.
 - **Definition of done.** Panel shows two command buttons; clicks issue HTTP `POST`; a command log refreshes every 5 s with the last 20 entries; `4xx`/`5xx` errors render inline.
@@ -92,7 +92,7 @@ The following capabilities are in `master` today and must not be regressed. All 
 
 ### 2.1 PAL-301 — XTCE environmental payload definition (APID 200)
 
-- **Objective.** Extend `yamcs/mdb/palantir.xml` with a new `Env_Payload_Packet` container restricted to `APID = 200`, inheriting from the existing abstract `CCSDS_Packet_Base`.
+- **Objective.** Add a new `yamcs/mdb/features/env-payload.xml` file as `<SpaceSystem name="EnvPayload">` defining an `Env_Payload_Packet` container restricted to `APID = 200`, inheriting from the abstract `CCSDS_Packet_Base` in `baseline.xml` (simple-name reference works via XTCE parent-scope resolution). Yamcs paths: `/Palantir/EnvPayload/Board_Temperature` etc. Register the file in `yamcs.palantir.yaml` `mdb.subLoaders` per the pattern documented in `yamcs/mdb/README.md`.
 - **Parameter set (verified ranges).**
   - `Board_Temperature` — `float32_t`, °C. `DefaultAlarm/StaticAlarmRanges`: **watch** ≥ +60 °C, **critical** ≥ +80 °C. These thresholds bracket the typical COTS electronics ratings for LEO CubeSat EEE parts.
   - `Battery_Voltage` — `float32_t`, V. Alarms: **watch** ≤ 7.0 V, **critical** ≤ 6.0 V (standard 2S Li-ion brown-out regime).
@@ -148,7 +148,7 @@ The following capabilities are in `master` today and must not be regressed. All 
   - 2 B padding (reserved)
 - **Physical model.** Band intensities modulate as `max(0, sin(2π · t / T_orbit))` tied to the simulated sun illumination angle, with `T_orbit ≈ 5554 s` (ISS). CCD temperature drifts between eclipse (−20 °C) and sunlit (+45 °C) via a low-pass filter on the illumination signal. Shutter transitions to `OPEN` when illumination > 0.05, back to `CLOSED` in eclipse.
 - **Deployment.** Independent Maven project `simulators/eo-payload-sim/` with its own `pom.xml`, `Dockerfile`, and `application.yaml`. Joins the compose network as `eo-payload-sim`. Byte order is **big-endian** — use `ByteBuffer.allocate(26).order(ByteOrder.BIG_ENDIAN)`; byte-order bugs are the single most common failure mode in CCSDS encoder work.
-- **XTCE.** New `EO_Payload_Packet` container (APID 400) in `palantir.xml` with the five parameter references, units, and `DefaultAlarm/StaticAlarmRanges` on CCD_Temperature (**watch** ≥ +50 °C, **critical** ≥ +55 °C).
+- **XTCE.** New `yamcs/mdb/features/eo-payload.xml` file as `<SpaceSystem name="EO">` defining an `EO_Payload_Packet` container (APID 400) with the five parameter references, units, and `DefaultAlarm/StaticAlarmRanges` on CCD_Temperature (**watch** ≥ +50 °C, **critical** ≥ +55 °C). Yamcs paths: `/Palantir/EO/Band_Red` etc. Register in `yamcs.palantir.yaml` `mdb.subLoaders`.
 - **Definition of done.** 1 Hz packets visible in Yamcs Web UI; eclipse thermal cycle observable over one orbital period; `docker compose up eo-payload-sim` starts the service alongside the baseline stack with no port conflict.
 - **Dependencies.** Palantir Core baseline; XTCE pattern from §2.1 (PAL-301) recommended.
 
@@ -186,7 +186,7 @@ The following capabilities are in `master` today and must not be regressed. All 
 ### 4.2 PAL-502 — Automated collision-avoidance loop with manual operator gate
 
 - **Objective.** Closed-loop collision-avoidance workflow that monitors conjunction events from §4.1, computes an avoidance manoeuvre when `Pc > 1e-4`, queues a `FIRE_THRUSTER` command, and **requires explicit operator approval** before release — no autonomous manoeuvre ever flies.
-- **XTCE command definition.** Add `FIRE_THRUSTER` `MetaCommand` to `palantir.xml` with:
+- **XTCE command definition.** Add `FIRE_THRUSTER` `MetaCommand` to a new `yamcs/mdb/features/propulsion.xml` file as `<SpaceSystem name="Propulsion">` (keeps the propulsion subsystem identifiable at `/Palantir/Propulsion/FIRE_THRUSTER` rather than overloading the generic TC namespace), with:
   - `opcode` (uint8, fixed = `0x04`)
   - `delta_v_x`, `delta_v_y`, `delta_v_z` — `float32` m/s in the radial-tangential-normal (RTN) frame
   - `burn_duration_s` — `uint16` seconds

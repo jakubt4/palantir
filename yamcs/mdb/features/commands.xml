@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Palantir MDB feature: bus telecommands (SpaceSystem "TC", nested under /Palantir).
+
+  Defines the baseline telecommand dictionary received by UdpCommandReceiver
+  on UDP port 10001 — PING (opcode 0x01), REBOOT_OBC (opcode 0x02).
+
+  Yamcs command paths: /Palantir/TC/PING, /Palantir/TC/REBOOT_OBC
+  REST invocation URL:
+    POST /api/processors/palantir/realtime/commands/Palantir/TC/PING
+
+  Subsystem-specific future commands (THRUST_MANEUVER, FIRE_THRUSTER) should
+  go into their own feature file with a fitting SpaceSystem name — e.g.,
+  features/propulsion.xml as <SpaceSystem name="Propulsion"> nested at
+  /Palantir/Propulsion/FIRE_THRUSTER.
+-->
+<SpaceSystem name="TC"
+             xmlns="http://www.omg.org/spec/XTCE/20180204"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="http://www.omg.org/spec/XTCE/20180204 https://www.omg.org/spec/XTCE/20180204/SpaceSystem.xsd">
+
+    <CommandMetaData>
+        <ArgumentTypeSet>
+            <IntegerArgumentType name="uint8_arg_t" signed="false" sizeInBits="8">
+                <IntegerDataEncoding sizeInBits="8" encoding="unsigned"/>
+            </IntegerArgumentType>
+        </ArgumentTypeSet>
+
+        <MetaCommandSet>
+            <MetaCommand name="PING">
+                <ArgumentList>
+                    <Argument name="OpCode" argumentTypeRef="uint8_arg_t" initialValue="1"/>
+                </ArgumentList>
+                <CommandContainer name="PING_Container">
+                    <EntryList>
+                        <ArgumentRefEntry argumentRef="OpCode"/>
+                    </EntryList>
+                </CommandContainer>
+            </MetaCommand>
+
+            <MetaCommand name="REBOOT_OBC">
+                <ArgumentList>
+                    <Argument name="OpCode" argumentTypeRef="uint8_arg_t" initialValue="2"/>
+                </ArgumentList>
+                <CommandContainer name="REBOOT_OBC_Container">
+                    <EntryList>
+                        <ArgumentRefEntry argumentRef="OpCode"/>
+                    </EntryList>
+                </CommandContainer>
+            </MetaCommand>
+        </MetaCommandSet>
+    </CommandMetaData>
+</SpaceSystem>
