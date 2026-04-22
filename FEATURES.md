@@ -1,8 +1,18 @@
 # Project Palantir — Master Feature Roadmap
 
-> **Single source of truth.** This document supersedes `FEATURES-OLD.md`, `FEATURES_v2-OLD.md`, and `FEATURE-v2-ext-OLD.md`. All earlier roadmap documents are retained for historical reference only and contain known technical inaccuracies (see §8 "Standards Alignment & Corrections"). Estimates have been intentionally removed — scheduling decisions live in the sprint plan, not here.
+> **Single source of truth.** This document supersedes `FEATURES-OLD.md`, `FEATURES_v2-OLD.md`, and `FEATURE-v2-ext-OLD.md`. All earlier roadmap documents are retained for historical reference only and contain known technical inaccuracies (see §9 "Standards Alignment & Corrections"). Estimates have been intentionally removed — scheduling decisions live in the sprint plan, not here.
 >
-> Items are strictly ordered by execution sequence. Work at the **top of this file is started first**; work at the **bottom is finished last**. Dependencies are explicit. Each item's mathematical, physical, and protocol details have been cross-checked against the authoritative specifications listed in §9.
+> Items are strictly ordered by execution sequence. Work at the **top of this file is started first**; work at the **bottom is finished last**. Dependencies are explicit. Each item's mathematical, physical, and protocol details have been cross-checked against the authoritative specifications listed in §10.
+
+---
+
+## Product Direction — Ground Segment as a Service
+
+This roadmap builds toward **Ground Segment as a Service (GSaaS)** — a multi-tenant cloud platform where satellite operators rent mission-control capabilities (telemetry ingest, visualization, commanding with operator gate, analytics, conjunction screening, anomaly detection) instead of running their own Yamcs instance and ops room. Comparable commercial offerings: Kayhan Space (conjunction focus), Leaf Space (ground-station network + analytics), Xplore, D-Orbit, Cognitive Space.
+
+**Every deliverable in §1–§5 should have a GSaaS role** — direct customer feature, platform enabler, or internal quality/evidence. Demo-only work is allowed but worth explicitly calling out in the ticket. Items that cannot be mapped to a GSaaS role are candidates for descope.
+
+**The productization backlog** (auth, multi-tenancy, billing, tenant onboarding, customer-facing API gateway, frontend app, etc.) — work that is unnecessary for Demo Day but required before any paying customer — lives in §7 Phase G, separated from the technical roadmap items above.
 
 ---
 
@@ -15,7 +25,7 @@ The following capabilities are in `master` today and must not be regressed. All 
 | SGP4/SDP4 orbit propagation at 1 Hz | `OrbitPropagationService` — Orekit 12.2 `TLEPropagator` under `@Scheduled(fixedRate = 1000)`; default ISS TLE loaded in `@PostConstruct` | Visible at `INFO` logs `[ISS (ZARYA)] Position — lat=… lon=… alt=… km` |
 | Hot-swappable TLE ingestion | `TleIngestionController` → `AtomicReference<TLEPropagator>` lock-free swap | `POST /api/orbit/tle` returns `ACTIVE`; propagation continues on next tick with zero downtime |
 | Coordinate pipeline `TEME → ITRF → Geodetic (WGS-84)` | `OneAxisEllipsoid` with `Constants.WGS84_EARTH_EQUATORIAL_RADIUS`, `WGS84_EARTH_FLATTENING`, `IERSConventions.IERS_2010` | Unit-test-validated physical bounds: lat ∈ [−90°, +90°], lon ∈ [−180°, +180°], alt > 0 km |
-| CCSDS Space Packet encoding (18 B) | `CcsdsTelemetrySender` — 6 B Primary Header + 12 B payload (3× IEEE 754 big-endian float), 14-bit `AtomicInteger` sequence counter, `APID = 100` | Hex dump logged on every `DEBUG` TX; wire-compatible with CCSDS 133.0-B-2 Primary Header (§9) |
+| CCSDS Space Packet encoding (18 B) | `CcsdsTelemetrySender` — 6 B Primary Header + 12 B payload (3× IEEE 754 big-endian float), 14-bit `AtomicInteger` sequence counter, `APID = 100` | Hex dump logged on every `DEBUG` TX; wire-compatible with CCSDS 133.0-B-2 Primary Header (§10) |
 | UDP downlink to Yamcs | `DatagramSocket` → `palantir-yamcs:10000/udp` via Docker DNS | Parameters `/Palantir/Latitude`, `/Palantir/Longitude`, `/Palantir/Altitude` update live in Yamcs Web UI |
 | UDP uplink (telecommand receive) | `UdpCommandReceiver` — Virtual Thread executor bound on `palantir.uplink.port` (default 10001); opcode dispatch for `0x01` PING, `0x02` REBOOT_OBC, `0x03` SET_TRANSMIT_POWER | Test-profile binds to `port=0` (ephemeral) to avoid CI conflicts |
 | Yamcs instance `palantir` | `UdpTmDataLink` (:10000), `UdpTcDataLink` → `palantir-core:10001`, `GenericPacketPreprocessor` with `seqCountOffset=2` and `useLocalGenerationTime=true`, `StreamTmPacketProvider` + `StreamParameterProvider` + `StreamTcCommandReleaser` on `realtime` processor | XTCE MDB split across `yamcs/mdb/baseline.xml` (SpaceSystem `Palantir` — CCSDS primitives + APID 100 nav packet → three float32 parameters) and `yamcs/mdb/features/commands.xml` (SpaceSystem `TC` nested at `/Palantir/TC` — bus commands) |
@@ -24,6 +34,8 @@ The following capabilities are in `master` today and must not be regressed. All 
 | Test coverage | JUnit 5 + Mockito + AssertJ — `TleIngestionControllerTest` (`@WebMvcTest`), `OrbitPropagationServiceTest` (`@SpringBootTest` + `ArgumentCaptor<Float>` physical-bounds assertions), `PalantirApplicationTests` (context load) | `mvn test` green; JaCoCo report at `target/site/jacoco/index.html` |
 
 > **Core-isolation directive.** All feature work below is developed in **independent projects** (separate Maven modules, standalone Python scripts, independent Spring Boot microservices, Yamcs plugin JARs) that interact with the baseline exclusively through UDP (`10000`, `10001`), the Yamcs REST API (`:8090/api`), the Yamcs WebSocket API (`:8090/api/websocket`), and the shared XTCE Mission Database. No pull request modifying `src/main/java/io/github/jakubt4/palantir/` is accepted for the student programme. This is the same integration model required for a commercially viable multi-tenant GSaaS offering.
+
+> **Engine vs. wrapper separation for tooling.** CLI tools, scripts, and services under `tools/`, `simulators/`, and `hpc/` keep their **business engine** (pure function: inputs → outputs / side-effects) separate from their **CLI or network wrapper** (argument parsing, I/O formatting). The engine is what gets wrapped as a REST endpoint later when the GSaaS customer-facing API needs it; the wrapper is throw-away plumbing. Mix the two and every tool becomes a refactor when the product goes live.
 
 ---
 
@@ -191,7 +203,7 @@ The following capabilities are in `master` today and must not be regressed. All 
   - `delta_v_x`, `delta_v_y`, `delta_v_z` — `float32` m/s in the radial-tangential-normal (RTN) frame
   - `burn_duration_s` — `uint16` seconds
   - A `DefaultSignificance` element set to `consequence="critical"`.
-- **Manual-approval mechanism — factual correction vs. earlier docs.** Yamcs does **not** provide an XTCE `ManualVerifier` element; the earlier roadmap's reference to one is incorrect (see §8 "Standards Alignment & Corrections"). The operational pattern the Yamcs command-processing model actually supports for manual release is:
+- **Manual-approval mechanism — factual correction vs. earlier docs.** Yamcs does **not** provide an XTCE `ManualVerifier` element; the earlier roadmap's reference to one is incorrect (see §9 "Standards Alignment & Corrections"). The operational pattern the Yamcs command-processing model actually supports for manual release is:
   1. **Command significance** — declare `<DefaultSignificance consequenceLevel="critical"/>` on the `MetaCommand`. This raises the significance level carried on the command object.
   2. **Command queue with `minLevel: critical`** — configure a dedicated queue in `yamcs.palantir.yaml` `commandQueues:` with `minLevel: critical` and `state: BLOCKED` (or an equivalent `manual`-release mode depending on Yamcs minor version). Commands of significance ≥ critical enter the queue and remain there until an operator performs an explicit "release" action through the Yamcs Web UI / REST API (`POST /api/queue/…/release-command`).
   3. Optional **TransmissionConstraint** against a `FIRE_THRUSTER_ARMED` ground-parameter to belt-and-brace the gate — this parameter is flipped by the operator pressing a dedicated "ARM" toggle and auto-resets after 60 s.
@@ -272,7 +284,22 @@ Items below are on the long-term backlog and are intentionally unsequenced. They
 
 ---
 
-## 7. Dependency Graph (topological, top-to-bottom)
+## 7. Phase G — Productization *(unscheduled, required for commercial GSaaS)*
+
+Items below are net-new relative to §0–§6 and specifically address the gap between "technically working PoC" and "commercially deployable multi-tenant service." Unscheduled because Demo Day 2026-09-29 does not require them; revisit when the product direction (top of file) moves from aspirational to committed.
+
+1. **Multi-tenancy & tenant isolation.** Per-customer isolation at the Yamcs instance, XTCE namespace, archive storage, and command dispatch levels. Options: instance-per-tenant (simpler, higher resource cost) vs. shared instance with namespace partitioning (denser, harder). Decision drives the rest of Phase G.
+2. **OAuth/OIDC + API-key authentication.** Yamcs' built-in auth is minimal; front with a dedicated identity provider (Keycloak, Auth0, AWS Cognito). API keys for machine-to-machine ingest, OIDC for human operators.
+3. **Tenant onboarding pipeline.** XTCE validation, Yamcs instance provisioning, default quotas, initial admin account, ground-station assignment. Scriptable (terraform / helm) and auditable.
+4. **Usage metering & billing integration.** Packets ingested, REST API calls, archive storage, analytics compute seconds. Event stream into Stripe / Chargebee or equivalent.
+5. **SLA monitoring dashboards.** Platform health metrics visible to tenants (uptime, ingest latency, query latency, retention compliance). Drives SLA credits on breach.
+6. **Per-tenant data retention policies.** Configurable archive retention per tenant with automated pruning; GDPR / regulatory deletion-on-request workflow.
+7. **Customer-facing REST / GraphQL API gateway.** Thin layer over Yamcs REST that enforces tenant scoping, rate limits, and versioning. Yamcs REST directly is too low-level to expose to external customers.
+8. **Frontend app beyond PAL-101 CesiumJS.** Full single-page app with auth, tenant switcher, multi-satellite navigation, subscription management, support-ticket integration.
+
+---
+
+## 8. Dependency Graph (topological, top-to-bottom)
 
 ```
 Baseline (§0)
@@ -302,13 +329,16 @@ Baseline (§0)
        │
        ▼
  └── Phase F  (§6)    deferred future concepts
+
+ ─── Phase G  (§7)    productization — runs orthogonally to §1–§6 when
+                       commercialization is committed; unscheduled otherwise
 ```
 
-Bars (`║`) mark siblings that can run in parallel; arrows (`◄──`) mark hard blockers.
+Bars (`║`) mark siblings that can run in parallel; arrows (`◄──`) mark hard blockers. The dashed line (`───`) for Phase G marks it as parallel-to-all rather than dependent on a specific phase.
 
 ---
 
-## 8. Standards Alignment & Corrections *(delta vs. earlier docs)*
+## 9. Standards Alignment & Corrections *(delta vs. earlier docs)*
 
 The following technical items have been **corrected** in this revision relative to the retired `FEATURES-OLD.md`, `FEATURES_v2-OLD.md`, and `FEATURE-v2-ext-OLD.md`:
 
@@ -329,7 +359,7 @@ Retired documents are preserved as `*-OLD.md` beside this file and should be tre
 
 ---
 
-## 9. Verified Specifications & References
+## 10. Verified Specifications & References
 
 All technical claims in §0–§6 have been cross-checked against the authoritative primary sources below. Citations are included here so future reviewers can verify the document mathematically, physically, and protocol-wise without re-discovering the references.
 
@@ -372,10 +402,10 @@ All technical claims in §0–§6 have been cross-checked against the authoritat
 
 ---
 
-## 10. How to use this document
+## 11. How to use this document
 
 - **Read it top-to-bottom.** The order is the execution order. There are no hidden dependencies between sections.
 - **Cite it in pull requests and sprint reviews.** If a PR touches any of §1–§5, reference the section number in the commit message and the PR description so the roadmap trace is automatic.
 - **Do not edit §0 without a flight-test.** §0 is the baseline contract; any regression must be caught by the integration suite in §3.3 before the baseline line items are modified.
-- **File technical corrections in §8.** If a downstream reviewer finds a mathematical or protocol issue, it belongs in §8 with the old/new pair so the audit trail is visible.
+- **File technical corrections in §9.** If a downstream reviewer finds a mathematical or protocol issue, it belongs in §9 with the old/new pair so the audit trail is visible.
 - **When in doubt, measure twice, cut once.** This is a digital twin of a real spacecraft. Every numerical error compounds.
