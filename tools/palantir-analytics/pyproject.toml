@@ -1,0 +1,33 @@
+[project]
+name = "palantir-analytics"
+version = "0.1.0"
+description = "Palantir ground segment analytics tools — telemetry export, pass prediction, trend analysis"
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [
+    {name = "Jakub Toth", email = "jakubt4@gmail.com"},
+]
+license = {text = "MIT"}
+dependencies = [
+    "typer ~= 0.15",
+    "yamcs-client ~= 1.9",
+    "pandas ~= 2.2",
+    "matplotlib ~= 3.9",
+    "cartopy ~= 0.24",
+]
+
+[dependency-groups]
+dev = [
+    "pytest ~= 8.3",
+    "responses ~= 0.25",
+]
+
+[project.scripts]
+palantir-analytics = "palantir_analytics.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["palantir_analytics"]

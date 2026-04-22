@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+
+# uv
+.venv/
+.uv-cache/
+
+# Tests / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Output artifacts
+out/
