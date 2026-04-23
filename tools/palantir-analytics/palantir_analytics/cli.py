@@ -8,6 +8,7 @@ from pathlib import Path
 import typer
 
 from palantir_analytics.export import run_export
+from palantir_analytics.plots import plot_altitude, plot_ground_track
 from palantir_analytics.yamcs_client import PalantirArchive
 
 app = typer.Typer(
@@ -46,6 +47,11 @@ def export(
     yamcs_address: str = typer.Option("localhost:8090", "--yamcs-address"),
     yamcs_instance: str = typer.Option("palantir", "--yamcs-instance"),
     out: Path = typer.Option(Path("./export"), "--out", help="Output directory."),
+    plots: bool = typer.Option(
+        True,
+        "--plots/--no-plots",
+        help="Also render altitude.png and ground_track.png alongside the CSV.",
+    ),
 ) -> None:
     """Dump archived telemetry to CSV + plots (PAL-201)."""
     start_dt = _parse_iso_utc(start)
@@ -74,6 +80,12 @@ def export(
             f"min={stats.min:.3f}, max={stats.max:.3f}, "
             f"mean={stats.mean:.3f}, std={stats.std:.3f}"
         )
+
+    if plots and result.sample_count > 0:
+        altitude_png = plot_altitude(result.df, out)
+        ground_track_png = plot_ground_track(result.df, out)
+        typer.echo(f"Wrote {altitude_png}")
+        typer.echo(f"Wrote {ground_track_png}")
 
 
 @app.command()
