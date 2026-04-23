@@ -64,3 +64,15 @@ def test_list_parameter_values_forwards_parameters(archive: PalantirArchive) -> 
     archive._archive.list_parameter_values.assert_called_once_with(
         parameter="/Palantir/Altitude", start=start, stop=stop
     )
+
+
+def test_get_parameter_unit_returns_primary(archive: PalantirArchive) -> None:
+    """Primary unit from XTCE UnitSet is returned as a string."""
+    archive._mdb.get_parameter.return_value = MagicMock(units=["km"])
+    assert archive.get_parameter_unit("/Palantir/Altitude") == "km"
+
+
+def test_get_parameter_unit_returns_none_when_missing(archive: PalantirArchive) -> None:
+    """Parameter with no UnitSet resolves to None."""
+    archive._mdb.get_parameter.return_value = MagicMock(units=[])
+    assert archive.get_parameter_unit("/Palantir/ccsds_packet_id") is None

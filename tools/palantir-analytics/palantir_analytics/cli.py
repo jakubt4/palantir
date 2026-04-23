@@ -82,7 +82,12 @@ def export(
         )
 
     if plots and result.sample_count > 0:
-        altitude_png = plot_altitude(result.df, out)
+        altitude_param = next(
+            (p for p in parameter if p.rsplit("/", 1)[-1] == "Altitude"),
+            None,
+        )
+        altitude_unit = result.units.get(altitude_param) if altitude_param else None
+        altitude_png = plot_altitude(result.df, out, unit=altitude_unit)
         ground_track_png = plot_ground_track(result.df, out)
         typer.echo(f"Wrote {altitude_png}")
         typer.echo(f"Wrote {ground_track_png}")

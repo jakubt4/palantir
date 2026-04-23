@@ -44,6 +44,7 @@ class PalantirArchive:
         self._instance = instance
         self._client = YamcsClient(address=address)
         self._archive = self._client.get_archive(instance)
+        self._mdb = self._client.get_mdb(instance)
 
     def list_parameter_values(
         self,
@@ -65,3 +66,13 @@ class PalantirArchive:
                 generation_time=value.generation_time,
                 value=value.eng_value,
             )
+
+    def get_parameter_unit(self, parameter: str) -> str | None:
+        """Return the primary unit string from the MDB's XTCE UnitSet.
+
+        yamcs-client exposes ``Parameter.units`` as a ``list[str]`` because
+        XTCE allows multiple UnitSet entries (primary + alternatives). We
+        return the first, or ``None`` if the parameter has no UnitSet.
+        """
+        parameter_meta = self._mdb.get_parameter(parameter)
+        return parameter_meta.units[0] if parameter_meta.units else None

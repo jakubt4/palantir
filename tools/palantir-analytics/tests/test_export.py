@@ -21,7 +21,7 @@ def _sample(t: datetime, v: float) -> ParameterSample:
 
 
 def test_writes_csv_and_returns_stats(tmp_path: Path) -> None:
-    """Engine queries archive, writes CSV, returns per-parameter stats."""
+    """Engine queries archive, writes CSV, returns per-parameter stats + units."""
     archive = MagicMock()
     t0 = datetime(2026, 4, 22, 10, 0, 0, tzinfo=timezone.utc)
     t1 = datetime(2026, 4, 22, 10, 0, 1, tzinfo=timezone.utc)
@@ -29,6 +29,7 @@ def test_writes_csv_and_returns_stats(tmp_path: Path) -> None:
         iter([_sample(t0, 10.0), _sample(t1, 20.0)]),     # /Palantir/Latitude
         iter([_sample(t0, 100.0), _sample(t1, 200.0)]),   # /Palantir/Longitude
     ]
+    archive.get_parameter_unit.side_effect = ["deg", "deg"]
 
     result = run_export(
         archive=archive,
@@ -57,11 +58,18 @@ def test_writes_csv_and_returns_stats(tmp_path: Path) -> None:
     assert result.df.shape == (2, 2)
     assert list(result.df.columns) == ["Latitude", "Longitude"]
 
+    # Units sourced from XTCE MDB (via the archive wrapper).
+    assert result.units == {
+        "/Palantir/Latitude": "deg",
+        "/Palantir/Longitude": "deg",
+    }
+
 
 def test_empty_window_returns_zero_count_and_header_only_csv(tmp_path: Path) -> None:
     """No samples → sample_count=0 and the CSV still writes header row."""
     archive = MagicMock()
     archive.list_parameter_values.side_effect = [iter([]), iter([])]
+    archive.get_parameter_unit.return_value = None
 
     result = run_export(
         archive=archive,
@@ -85,6 +93,7 @@ def test_mismatched_timestamps_outer_join_with_nan(tmp_path: Path) -> None:
         iter([_sample(t0, 10.0)]),       # Latitude at t0 only
         iter([_sample(t1, 200.0)]),      # Longitude at t1 only
     ]
+    archive.get_parameter_unit.return_value = "deg"
 
     result = run_export(
         archive=archive,

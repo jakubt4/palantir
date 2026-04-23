@@ -26,20 +26,21 @@ def plot_altitude(
     df: pd.DataFrame,
     out_dir: Path,
     column: str = "Altitude",
-    ylabel: str = "Altitude (km)",
+    unit: str | None = None,
 ) -> Path:
     """Render altitude vs. time to ``out_dir/altitude.png``.
 
     :param df:      Time-indexed DataFrame (DatetimeIndex) with an altitude column.
     :param out_dir: Directory for the PNG; created if missing.
     :param column:  Altitude column name; defaults to 'Altitude'.
-    :param ylabel:  Y-axis label. Default 'Altitude (km)' matches the current
-                    CcsdsTelemetrySender emission; long-term, units should come
-                    from XTCE MDB metadata rather than the caller.
+    :param unit:    Unit string from the XTCE MDB (e.g. 'km'); appended to the
+                    Y-axis label as 'Altitude (km)'. None → no unit suffix.
     :return:        Path to the written PNG.
     """
     out_dir.mkdir(parents=True, exist_ok=True)
     png_path = out_dir / "altitude.png"
+
+    ylabel = f"Altitude ({unit})" if unit else "Altitude"
 
     fig, ax = plt.subplots(figsize=(10, 4))
     try:

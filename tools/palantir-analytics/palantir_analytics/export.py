@@ -46,13 +46,15 @@ class ExportResult:
     by the parameter's fully-qualified input path. ``df`` is the joined
     DataFrame itself, exposed so downstream plot engines don't re-read
     the CSV; excluded from __eq__/__repr__ because DataFrame equality
-    returns a DataFrame, not a bool.
+    returns a DataFrame, not a bool. ``units`` maps parameter path →
+    primary unit string (from the XTCE UnitSet via Yamcs MDB) or None.
     """
 
     csv_path: Path
     sample_count: int
     stats: dict[str, ParameterStats]
     df: pd.DataFrame = field(compare=False, repr=False)
+    units: dict[str, str | None] = field(default_factory=dict)
 
 
 def run_export(
@@ -103,8 +105,15 @@ def run_export(
         parameter: _compute_stats(df[column])
         for parameter, column in zip(parameters, series_by_column.keys(), strict=True)
     }
+    units = {parameter: archive.get_parameter_unit(parameter) for parameter in parameters}
 
-    return ExportResult(csv_path=csv_path, sample_count=len(df), stats=stats, df=df)
+    return ExportResult(
+        csv_path=csv_path,
+        sample_count=len(df),
+        stats=stats,
+        df=df,
+        units=units,
+    )
 
 
 def _compute_stats(series: pd.Series) -> ParameterStats:
