@@ -26,12 +26,16 @@ def plot_altitude(
     df: pd.DataFrame,
     out_dir: Path,
     column: str = "Altitude",
+    ylabel: str = "Altitude (km)",
 ) -> Path:
     """Render altitude vs. time to ``out_dir/altitude.png``.
 
     :param df:      Time-indexed DataFrame (DatetimeIndex) with an altitude column.
     :param out_dir: Directory for the PNG; created if missing.
     :param column:  Altitude column name; defaults to 'Altitude'.
+    :param ylabel:  Y-axis label. Default 'Altitude (km)' matches the current
+                    CcsdsTelemetrySender emission; long-term, units should come
+                    from XTCE MDB metadata rather than the caller.
     :return:        Path to the written PNG.
     """
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -41,7 +45,7 @@ def plot_altitude(
     try:
         ax.plot(df.index, df[column], linewidth=1.0)
         ax.set_xlabel("Time (UTC)")
-        ax.set_ylabel("Altitude (m)")
+        ax.set_ylabel(ylabel)
         ax.set_title("Satellite altitude")
         ax.grid(True, alpha=0.3)
         fig.autofmt_xdate()

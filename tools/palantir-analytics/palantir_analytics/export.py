@@ -89,6 +89,13 @@ def run_export(
     # Outer join on timestamp — NaN for parameters missing at a given instant.
     df = pd.concat(series_by_column.values(), axis=1).sort_index()
 
+    # Normalize to UTC so CSV offsets and plot axes are unambiguous,
+    # regardless of what tz yamcs-client attached to generation_time.
+    if df.index.tz is None:
+        df.index = df.index.tz_localize("UTC")
+    else:
+        df.index = df.index.tz_convert("UTC")
+
     csv_path = out_dir / "telemetry_export.csv"
     df.to_csv(csv_path, date_format="%Y-%m-%dT%H:%M:%S%z")
 
