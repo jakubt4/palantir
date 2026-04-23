@@ -53,6 +53,10 @@ def test_writes_csv_and_returns_stats(tmp_path: Path) -> None:
     assert "timestamp,Latitude,Longitude" in csv
     assert "10.0" in csv and "100.0" in csv
 
+    # df exposed for downstream plot engines; 2 timestamps × 2 parameters.
+    assert result.df.shape == (2, 2)
+    assert list(result.df.columns) == ["Latitude", "Longitude"]
+
 
 def test_empty_window_returns_zero_count_and_header_only_csv(tmp_path: Path) -> None:
     """No samples → sample_count=0 and the CSV still writes header row."""

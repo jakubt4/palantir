@@ -11,7 +11,7 @@ a REST wrapper in a future GSaaS frontend reuses this engine as-is.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Sequence
@@ -43,12 +43,16 @@ class ExportResult:
 
     ``sample_count`` is the number of rows in the joined DataFrame
     (i.e. unique timestamps across all parameters). ``stats`` is keyed
-    by the parameter's fully-qualified input path.
+    by the parameter's fully-qualified input path. ``df`` is the joined
+    DataFrame itself, exposed so downstream plot engines don't re-read
+    the CSV; excluded from __eq__/__repr__ because DataFrame equality
+    returns a DataFrame, not a bool.
     """
 
     csv_path: Path
     sample_count: int
     stats: dict[str, ParameterStats]
+    df: pd.DataFrame = field(compare=False, repr=False)
 
 
 def run_export(
@@ -93,7 +97,7 @@ def run_export(
         for parameter, column in zip(parameters, series_by_column.keys(), strict=True)
     }
 
-    return ExportResult(csv_path=csv_path, sample_count=len(df), stats=stats)
+    return ExportResult(csv_path=csv_path, sample_count=len(df), stats=stats, df=df)
 
 
 def _compute_stats(series: pd.Series) -> ParameterStats:
