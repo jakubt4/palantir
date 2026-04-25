@@ -50,6 +50,12 @@ Run `uv run palantir-analytics export --help` for the full list.
 
 AOS/LOS pass predictions for a ground station. Stub today.
 
+## Limitations
+
+- **Not real-time.** This is a window query against the parameter archive. For a live feed, subscribe to Yamcs over WebSocket directly.
+- **Memory-bound.** All samples are joined into a single in-memory DataFrame. Fine for hours of 1 Hz telemetry; won't scale to days × hundreds of parameters without chunked streaming.
+- **Single-tenant.** Assumes one unauthenticated Yamcs instance — appropriate for the PoC, not for multi-tenant deployment.
+
 ## Development
 
 ```bash
