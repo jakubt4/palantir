@@ -14,6 +14,8 @@ This roadmap builds toward **Ground Segment as a Service (GSaaS)** — a multi-t
 
 **The productization backlog** (auth, multi-tenancy, billing, tenant onboarding, customer-facing API gateway, frontend app, etc.) — work that is unnecessary for Demo Day but required before any paying customer — lives in §7 Phase G, separated from the technical roadmap items above.
 
+**Concrete near-term GSaaS surfaces** unlocked by §1 analytics work include: tenant data export ("download my last 30 days of telemetry as CSV"), server-rendered dashboard previews (PNG/SVG returned via REST), scheduled reporting (cron → email/Slack with attached plots), and a feature pipeline for downstream anomaly detection (`DataFrame` is the input shape every ML library expects). The `palantir-analytics` engines are designed to be wrapped behind these endpoints without rewriting — that is the *raison d'être* of the engine/wrapper separation directive (§0).
+
 ---
 
 ## 0. Baseline — Already Operational
