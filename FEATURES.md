@@ -3,6 +3,8 @@
 > **Single source of truth.** This document supersedes the earlier roadmap drafts now archived under `docs/archive/` (`roadmap-v1.md`, `pitch-narratives-v2.md`, `roadmap-v2-detailed.md`). Those drafts are retained for historical reference only and contain known technical inaccuracies (see §9 "Standards Alignment & Corrections"). Estimates have been intentionally removed — scheduling decisions live in the sprint plan, not here.
 >
 > Items are strictly ordered by execution sequence. Work at the **top of this file is started first**; work at the **bottom is finished last**. Dependencies are explicit. Each item's mathematical, physical, and protocol details have been cross-checked against the authoritative specifications listed in §10.
+>
+> **Status badges:** ✅ done (DoD met, dated) — 🚧 in progress — 🎯 next up — (no badge) backlog.
 
 ---
 
@@ -56,7 +58,7 @@ The following capabilities are in `master` today and must not be regressed. All 
 - **Definition of done.** Spacecraft icon moves at 1 Hz, ground track polyline visibly accumulates, altitude overlay shows 2-decimal km, `npm start` or `index.html` runs standalone.
 - **Dependencies.** Palantir Core baseline only.
 
-### 1.2 PAL-201 — Telemetry export & trend analysis *(parallel with 1.1)*
+### 1.2 PAL-201 — Telemetry export & trend analysis *(parallel with 1.1)* ✅ done (2026-04-23)
 
 - **Objective.** Python pipeline that extracts archived telemetry from the Yamcs Archive API via the `yamcs-client` library and produces publication-quality flight-dynamics artifacts.
 - **Technical contract.**
@@ -76,7 +78,7 @@ The following capabilities are in `master` today and must not be regressed. All 
 - **Definition of done.** Panel shows two command buttons; clicks issue HTTP `POST`; a command log refreshes every 5 s with the last 20 entries; `4xx`/`5xx` errors render inline.
 - **Dependencies.** Palantir Core baseline.
 
-### 1.4 PAL-202 — AOS/LOS pass prediction report *(parallel with 1.3)*
+### 1.4 PAL-202 — AOS/LOS pass prediction report *(parallel with 1.3)* 🎯 next
 
 - **Objective.** Post-process archived lat/lon telemetry against a ground-station visibility mask and produce a pass-prediction CSV + visibility timeline.
 - **Verified geometric model (spherical Earth, fit-for-purpose for PoC).** Let the ground station have geodetic latitude `φ_gs`, longitude `λ_gs`, and altitude `h_gs`, and the sub-satellite point `(φ_ss, λ_ss)` with spacecraft altitude `h_sat` above the ellipsoid. The Earth central angle `γ` between the station and the sub-satellite point is computed via the Haversine formula:
