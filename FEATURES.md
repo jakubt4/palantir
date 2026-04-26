@@ -1,6 +1,6 @@
 # Project Palantir — Master Feature Roadmap
 
-> **Single source of truth.** This document supersedes `FEATURES-OLD.md`, `FEATURES_v2-OLD.md`, and `FEATURE-v2-ext-OLD.md`. All earlier roadmap documents are retained for historical reference only and contain known technical inaccuracies (see §9 "Standards Alignment & Corrections"). Estimates have been intentionally removed — scheduling decisions live in the sprint plan, not here.
+> **Single source of truth.** This document supersedes the earlier roadmap drafts now archived under `docs/archive/` (`roadmap-v1.md`, `pitch-narratives-v2.md`, `roadmap-v2-detailed.md`). Those drafts are retained for historical reference only and contain known technical inaccuracies (see §9 "Standards Alignment & Corrections"). Estimates have been intentionally removed — scheduling decisions live in the sprint plan, not here.
 >
 > Items are strictly ordered by execution sequence. Work at the **top of this file is started first**; work at the **bottom is finished last**. Dependencies are explicit. Each item's mathematical, physical, and protocol details have been cross-checked against the authoritative specifications listed in §10.
 
@@ -282,7 +282,7 @@ Items below are on the long-term backlog and are intentionally unsequenced. They
 5. **Orekit 13.x upgrade.** Current code uses Orekit 12.2; Orekit 13.1.4 (released 2026-02-08) is the latest. Upgrade is low risk — API surface used by the project (`TLE`, `TLEPropagator`, `OneAxisEllipsoid`, `IERSConventions`) is stable — but touches the flight-critical core and so is deferred to a quiet sprint with dedicated regression testing.
 6. **Yamcs 5.12.5 / 5.13 upgrade.** Currently pinned at 5.12.2. The version drift is minor; defer until the Yamcs 5.13 line stabilises and the plugin API (§3.1) is known to remain source-compatible.
 7. **CCSDS 133.0-B-2 clarifications adoption.** Wire format is already compatible (Primary Header unchanged between B-1 and B-2); adopt the B-2 terminology and idle-packet handling in the encoder after 5.12 upgrade.
-8. **ESA BIC technical readiness package.** Predictive Orbital Shadowing (cross-check Orekit ideal state vs. ingested parameters, fire `ParameterAlarm` on divergence) and closed-loop command verification (bidirectional ACK) as presented in the earlier `FEATURES_v2-OLD.md`. These are valuable marketing stories but depend on Phases C + D being stable in production, which is why they sit at the bottom.
+8. **ESA BIC technical readiness package.** Predictive Orbital Shadowing (cross-check Orekit ideal state vs. ingested parameters, fire `ParameterAlarm` on divergence) and closed-loop command verification (bidirectional ACK) as presented in the archived pitch narratives (`docs/archive/pitch-narratives-v2.md`). These are valuable marketing stories but depend on Phases C + D being stable in production, which is why they sit at the bottom.
 
 ---
 
@@ -342,7 +342,7 @@ Bars (`║`) mark siblings that can run in parallel; arrows (`◄──`) mark h
 
 ## 9. Standards Alignment & Corrections *(delta vs. earlier docs)*
 
-The following technical items have been **corrected** in this revision relative to the retired `FEATURES-OLD.md`, `FEATURES_v2-OLD.md`, and `FEATURE-v2-ext-OLD.md`:
+The following technical items have been **corrected** in this revision relative to the archived roadmap drafts under `docs/archive/` (`roadmap-v1.md`, `pitch-narratives-v2.md`, `roadmap-v2-detailed.md`):
 
 | # | Old text | Issue | Corrected position |
 |---|---|---|---|
@@ -357,7 +357,7 @@ The following technical items have been **corrected** in this revision relative 
 | 9 | "AOS/LOS uses elevation = `arctan((cos γ − R/(R+h)) / sin γ)`" (old PAL-202) | Correct, but `arctan` loses sign information; swapped to `atan2` form to handle the full range cleanly. | §1.4 PAL-202 uses `atan2( cos γ − R/(R+h), sin γ )`. |
 | 10 | "Post-FIRE_THRUSTER propagation remains on SGP4 TLE" (implicit in old docs) | TLE mean elements no longer represent the orbit after an impulsive manoeuvre; the propagator must switch to a numerical model. | §4.3 Phase 3b prescribes the post-manoeuvre handoff to a `NumericalPropagator` with point-mass + J₂. |
 
-Retired documents are preserved as `*-OLD.md` beside this file and should be treated as historical context only. Do not cite them in new work.
+Retired drafts are preserved under `docs/archive/` and should be treated as historical context only. Do not cite them in new work.
 
 ---
 
