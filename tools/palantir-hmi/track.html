@@ -4,12 +4,25 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Palantir — Ground Track</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+    <link rel="stylesheet" href="/src/track.css" />
   </head>
-  <body>
-    <main class="placeholder">
-      <h1>Ground track (PAL-101)</h1>
-      <p>Implementation arrives in the next commit.</p>
-      <a href="/">← back</a>
-    </main>
+  <body class="track-body">
+    <div id="cesiumContainer"></div>
+
+    <header class="hud hud-top">
+      <a href="/" class="hud-back">← back</a>
+      <span class="hud-title">PAL-101 — Ground track</span>
+      <span id="statusReadout" class="status status-connecting">connecting</span>
+    </header>
+
+    <aside class="hud hud-bottom">
+      <div class="readout">
+        <span class="readout-label">altitude</span>
+        <span id="altitudeReadout" class="readout-value">—</span>
+      </div>
+    </aside>
+
+    <script type="module" src="/src/track.js"></script>
   </body>
 </html>

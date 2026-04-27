@@ -1,0 +1,72 @@
+.track-body {
+  margin: 0;
+  overflow: hidden;
+}
+
+#cesiumContainer {
+  position: absolute;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+}
+
+.hud {
+  position: absolute;
+  z-index: 10;
+  background: rgba(13, 17, 23, 0.85);
+  color: #e6edf3;
+  border: 1px solid #30363d;
+  border-radius: 0.5rem;
+  padding: 0.6rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  backdrop-filter: blur(4px);
+}
+
+.hud-top {
+  top: 1rem;
+  left: 1rem;
+}
+
+.hud-back {
+  font-size: 0.9rem;
+}
+
+.hud-title {
+  font-weight: 600;
+}
+
+.hud-bottom {
+  bottom: 1rem;
+  right: 1rem;
+}
+
+.readout {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.readout-label {
+  font-size: 0.7rem;
+  color: #8b949e;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.readout-value {
+  font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+  font-size: 1.1rem;
+}
+
+.status {
+  padding: 0.15rem 0.5rem;
+  border-radius: 0.3rem;
+  font-size: 0.8rem;
+  font-family: ui-monospace, "Consolas", monospace;
+  text-transform: uppercase;
+}
+.status-open      { background: #1a4d2b; color: #7ee2a8; }
+.status-connecting{ background: #4d3d1a; color: #f0c674; }
+.status-closed    { background: #4d1a1a; color: #f08080; }
