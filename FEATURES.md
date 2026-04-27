@@ -68,7 +68,7 @@ The following capabilities are in `master` today and must not be regressed. All 
 - **Definition of done.** `python orbital_analysis.py --start 2026-04-13T00:00:00Z --stop 2026-04-13T02:00:00Z` produces all three artifacts against a live Yamcs archive containing at least 2 h of data.
 - **Dependencies.** Palantir Core baseline; at least 2 h of archived telemetry.
 
-### 1.3 PAL-102 — Telecommand control panel with execution feedback 🚧 in progress
+### 1.3 PAL-102 — Telecommand control panel with execution feedback ✅ done (2026-04-27)
 
 - **Objective.** Web panel that issues `PING` and `REBOOT_OBC` via the Yamcs REST commanding API and displays command history.
 - **Technical contract.**
