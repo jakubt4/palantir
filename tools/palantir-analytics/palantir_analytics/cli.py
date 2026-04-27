@@ -9,7 +9,11 @@ import typer
 
 from palantir_analytics.export import run_export
 from palantir_analytics.passes import compute_passes
-from palantir_analytics.plots import plot_altitude, plot_ground_track
+from palantir_analytics.plots import (
+    plot_altitude,
+    plot_ground_track,
+    plot_visibility_timeline,
+)
 from palantir_analytics.yamcs_client import PalantirArchive
 
 app = typer.Typer(
@@ -145,6 +149,12 @@ def passes(
             f"max el {p.max_elevation_deg:.1f}°, "
             f"duration {p.duration_seconds:.0f} s"
         )
+
+    if not report.elevation_series.empty:
+        png_path = plot_visibility_timeline(
+            report.elevation_series, report.passes, out, min_elevation_deg=min_elevation
+        )
+        typer.echo(f"Wrote {png_path}")
 
 
 if __name__ == "__main__":
