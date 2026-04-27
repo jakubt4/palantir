@@ -75,9 +75,11 @@ table.history th {
   font-size: 0.75rem;
   background: #30363d;
 }
+.status-pill.status-ok,
 .status-pill.status-sent      { background: #1a4d2b; color: #7ee2a8; }
 .status-pill.status-released  { background: #1a3a4d; color: #7ec8e2; }
 .status-pill.status-queued    { background: #4d3d1a; color: #f0c674; }
+.status-pill.status-nok,
 .status-pill.status-rejected,
 .status-pill.status-failed,
 .status-pill.status-timed-out { background: #4d1a1a; color: #f08080; }

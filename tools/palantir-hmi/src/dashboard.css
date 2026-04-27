@@ -1,0 +1,78 @@
+/* Unified dashboard layout — globe on the left, command sidebar on
+   the right, telemetry status + altitude in a top header bar.
+   Shared HUD bits (.status, .readout) live in styles.css. */
+
+.dashboard-body {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  grid-template-rows: 56px 1fr;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.dashboard-header {
+  grid-column: 1 / span 2;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0 1.25rem;
+  background: #0d1117;
+  border-bottom: 1px solid #30363d;
+}
+.dashboard-header h1 {
+  font-size: 1.1rem;
+  margin: 0;
+  font-weight: 600;
+  color: #e6edf3;
+}
+.dashboard-spacer { flex: 1; }
+.dashboard-nav {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.85rem;
+  color: #8b949e;
+}
+.dashboard-nav a { color: #8b949e; }
+.dashboard-nav a:hover { color: #58a6ff; }
+
+.dashboard-globe {
+  grid-row: 2;
+  grid-column: 1;
+  position: relative;
+  background: #000;
+}
+.dashboard-globe #cesiumContainer {
+  position: absolute;
+  inset: 0;
+}
+
+.dashboard-sidebar {
+  grid-row: 2;
+  grid-column: 2;
+  padding: 1.25rem;
+  overflow-y: auto;
+  border-left: 1px solid #30363d;
+  background: #0d1117;
+}
+.dashboard-sidebar h2 {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #8b949e;
+}
+.dashboard-sidebar h3 {
+  margin: 1.5rem 0 0.5rem;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #8b949e;
+}
+
+/* Sidebar narrows the buttons compared to the standalone commands.html. */
+.dashboard-sidebar .tc-buttons { flex-direction: column; }
+.dashboard-sidebar .tc { padding: 0.7rem 1rem; font-size: 0.95rem; }
+
+/* Compact issuer column for narrow sidebar — still visible, just smaller. */
+.dashboard-sidebar .col-issuer { color: #6e7681; font-size: 0.85rem; }

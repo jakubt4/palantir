@@ -65,3 +65,36 @@ a:hover {
   color: #8b949e;
   margin: 0;
 }
+
+/* Shared HUD elements — used by /, /track.html, /commands.html. */
+.readout {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+.readout-inline {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+.readout-label {
+  font-size: 0.7rem;
+  color: #8b949e;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.readout-value {
+  font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+  font-size: 1.1rem;
+}
+
+.status {
+  padding: 0.15rem 0.5rem;
+  border-radius: 0.3rem;
+  font-size: 0.8rem;
+  font-family: ui-monospace, "Consolas", monospace;
+  text-transform: uppercase;
+}
+.status-open       { background: #1a4d2b; color: #7ee2a8; }
+.status-connecting { background: #4d3d1a; color: #f0c674; }
+.status-closed     { background: #4d1a1a; color: #f08080; }

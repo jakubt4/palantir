@@ -5,21 +5,52 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Palantir HMI</title>
     <link rel="stylesheet" href="/src/styles.css" />
+    <link rel="stylesheet" href="/src/commands.css" />
+    <link rel="stylesheet" href="/src/dashboard.css" />
   </head>
-  <body>
-    <main class="landing">
-      <h1>Palantir Operator HMI</h1>
-      <p>Browser-based mission control views connected to the Yamcs instance at <code>localhost:8090</code>.</p>
-      <nav class="cards">
-        <a class="card" href="/track.html">
-          <h2>Ground track</h2>
-          <p>Real-time 3D ground track over a Cesium globe (PAL-101).</p>
-        </a>
-        <a class="card" href="/commands.html">
-          <h2>Telecommand panel</h2>
-          <p>Issue PING / REBOOT_OBC and watch command history (PAL-102).</p>
-        </a>
+  <body class="dashboard-body">
+    <header class="dashboard-header">
+      <h1>Palantir HMI</h1>
+      <span id="statusReadout" class="status status-connecting">connecting</span>
+      <div class="dashboard-spacer"></div>
+      <div class="readout readout-inline">
+        <span class="readout-label">altitude</span>
+        <span id="altitudeReadout" class="readout-value">—</span>
+      </div>
+      <nav class="dashboard-nav">
+        <a href="/track.html" title="Fullscreen track">⤢ track</a>
+        <a href="/commands.html" title="Fullscreen commands">⤢ commands</a>
       </nav>
-    </main>
+    </header>
+
+    <section class="dashboard-globe">
+      <div id="cesiumContainer"></div>
+    </section>
+
+    <aside class="dashboard-sidebar">
+      <h2>Telecommands</h2>
+      <div class="tc-buttons">
+        <button class="tc" data-command="/Palantir/TC/PING">PING</button>
+        <button class="tc tc-danger" data-command="/Palantir/TC/REBOOT_OBC">REBOOT_OBC</button>
+      </div>
+      <div id="feedback" class="feedback">Ready.</div>
+
+      <h3>Recent commands</h3>
+      <table class="history">
+        <thead>
+          <tr>
+            <th class="col-time">Time</th>
+            <th class="col-cmd">Command</th>
+            <th class="col-status">Status</th>
+            <th class="col-issuer">Issuer</th>
+          </tr>
+        </thead>
+        <tbody id="historyBody"></tbody>
+      </table>
+      <div id="historyStatus" class="history-status">connecting…</div>
+    </aside>
+
+    <script type="module" src="/src/track.js"></script>
+    <script type="module" src="/src/commands.js"></script>
   </body>
 </html>
