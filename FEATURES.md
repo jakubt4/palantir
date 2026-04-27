@@ -78,7 +78,7 @@ The following capabilities are in `master` today and must not be regressed. All 
 - **Definition of done.** Panel shows two command buttons; clicks issue HTTP `POST`; a command log refreshes every 5 s with the last 20 entries; `4xx`/`5xx` errors render inline.
 - **Dependencies.** Palantir Core baseline.
 
-### 1.4 PAL-202 — AOS/LOS pass prediction report *(parallel with 1.3)* 🚧 in progress
+### 1.4 PAL-202 — AOS/LOS pass prediction report *(parallel with 1.3)* ✅ done (2026-04-27)
 
 - **Objective.** Post-process archived lat/lon telemetry against a ground-station visibility mask and produce a pass-prediction CSV + visibility timeline.
 - **Verified geometric model (spherical Earth, fit-for-purpose for PoC).** Let the ground station have geodetic latitude `φ_gs`, longitude `λ_gs`, and altitude `h_gs`, and the sub-satellite point `(φ_ss, λ_ss)` with spacecraft altitude `h_sat` above the ellipsoid. The Earth central angle `γ` between the station and the sub-satellite point is computed via the Haversine formula:
