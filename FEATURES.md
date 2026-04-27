@@ -100,7 +100,7 @@ The following capabilities are in `master` today and must not be regressed. All 
 - **Definition of done.** `pass_report.csv` with `pass_number, aos_time, los_time, max_elevation_deg, duration_seconds`; `visibility_timeline.png` showing `el(t)` with AOS/LOS markers; validated against ≥ 6 h of archive producing ≥ 2 passes for an ISS-class LEO orbit.
 - **Dependencies.** Palantir Core baseline; at least 6 h of archived telemetry.
 
-### 1.5 PAL-203 — Ground-station registry (YAML config) 🚧 in progress
+### 1.5 PAL-203 — Ground-station registry (YAML config) ✅ done (2026-04-27)
 
 - **Objective.** YAML-backed ground-station catalogue with CLI override flags, layered onto every analytics tool that takes a station (PAL-202 today, PAL-101 ground-track HMI and PAL-501 conjunction screening later). Eliminates the "hardcoded coordinates per tool" anti-pattern before it spreads.
 - **Technical contract.**

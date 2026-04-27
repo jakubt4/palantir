@@ -19,3 +19,4 @@ htmlcov/
 # Output artifacts
 out/
 smoke-test-output*/
+pal*-smoke*/
