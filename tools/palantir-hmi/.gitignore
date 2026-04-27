@@ -1,0 +1,14 @@
+# Node
+node_modules/
+dist/
+.vite/
+*.log
+
+# Environment (real token lives in .env.local, never committed)
+.env
+.env.local
+.env.*.local
+
+# Editor
+.vscode/
+.idea/
