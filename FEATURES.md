@@ -127,6 +127,30 @@ The following capabilities are in `master` today and must not be regressed. All 
 - **Definition of done.** `palantir-analytics passes --config stations.yaml --station kosice ...` writes a Košice-centred pass report; the same invocation with `--station-lat 50.0` added overrides only the latitude. Unit tests cover precedence resolution and validation rejection of out-of-range coords or unknown station names.
 - **Dependencies.** §1.4 PAL-202 (the first consumer of station coordinates).
 
+### 1.6 PAL-104 — Automated TLE refresh from CelesTrak 🚧 in progress
+
+- **Objective.** Background scheduler that periodically fetches the current ISS (or configured satellite) TLE from CelesTrak's GP catalog and hot-swaps the propagator via the existing `OrbitPropagationService.updateTle()` mechanism. Eliminates SGP4 drift caused by a stale baseline TLE — without it, the digital twin's geodetic position diverges from reality at rates of kilometres per day after the first week, visible on the PAL-101 ground-track HMI as the spacecraft rendering "in the wrong place".
+- **Technical contract.**
+  - New `TleRefreshService` Spring `@Service` annotated with `@Scheduled` and gated by `@ConditionalOnProperty(prefix = "palantir.tle.refresh", name = "enabled", matchIfMissing = true)`.
+  - Configurable via `application.yaml`:
+
+    ```yaml
+    palantir:
+      tle:
+        refresh:
+          enabled: true
+          interval-ms: 21600000      # 6 h — CelesTrak rate-limit-friendly
+          initial-delay-ms: 60000    # wait 1 min after startup
+          celestrak-url: "https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=tle"
+          satellite-name: "ISS (ZARYA)"
+    ```
+
+  - Robust to two-line and three-line (name + line1 + line2) CelesTrak responses; takes the **last two non-blank lines** as `line1` / `line2`.
+  - Graceful degradation: HTTP failures, malformed bodies, and Orekit parse errors logged at WARN; the active propagator remains in place until the next successful fetch.
+  - Test profile (`src/test/resources/application.yaml`) sets `enabled: false` so unit / integration tests do not hit CelesTrak in CI.
+- **Definition of done.** Service refreshes TLE on the configured schedule; logs `Refreshed TLE from CelesTrak` with the new TLE epoch on success; existing 1 Hz telemetry pipeline continues uninterrupted across the swap. Unit tests cover happy-path parsing, two-line vs. three-line response handling, HTTP failure path, and the kill-switch. Live verification: shorten `interval-ms` to 5 s, watch the log show a fresh epoch close to wall-clock time.
+- **Dependencies.** Palantir Core baseline. **Note on §0 core-isolation:** this ticket modifies baseline Java code rather than living in an independent project, because *the propagator is the baseline* — automated TLE refresh is a baseline-quality enhancement, not a feature add-on layered through documented network interfaces. Single-developer PoC context.
+
 ---
 
 ## 2. Phase B — Mission Database Expansion
@@ -339,6 +363,7 @@ Baseline (§0)
  ├── PAL-201  (§1.2)  analytics pipeline     ║ parallel
  ├── PAL-102  (§1.3)  command panel          ║ parallel
  ├── PAL-202  (§1.4)  AOS/LOS report         ║ parallel
+ ├── PAL-104  (§1.6)  TLE auto-refresh       ║ parallel (baseline enhancement)
  └── PAL-203  (§1.5)  station registry       ◄── after PAL-202
        │
        ▼
