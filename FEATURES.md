@@ -127,7 +127,7 @@ The following capabilities are in `master` today and must not be regressed. All 
 - **Definition of done.** `palantir-analytics passes --config stations.yaml --station kosice ...` writes a Košice-centred pass report; the same invocation with `--station-lat 50.0` added overrides only the latitude. Unit tests cover precedence resolution and validation rejection of out-of-range coords or unknown station names.
 - **Dependencies.** §1.4 PAL-202 (the first consumer of station coordinates).
 
-### 1.6 PAL-104 — Automated TLE refresh from CelesTrak 🚧 in progress
+### 1.6 PAL-104 — Automated TLE refresh from CelesTrak ✅ done (2026-04-27)
 
 - **Objective.** Background scheduler that periodically fetches the current ISS (or configured satellite) TLE from CelesTrak's GP catalog and hot-swaps the propagator via the existing `OrbitPropagationService.updateTle()` mechanism. Eliminates SGP4 drift caused by a stale baseline TLE — without it, the digital twin's geodetic position diverges from reality at rates of kilometres per day after the first week, visible on the PAL-101 ground-track HMI as the spacecraft rendering "in the wrong place".
 - **Technical contract.**
