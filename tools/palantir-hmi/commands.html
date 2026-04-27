@@ -4,12 +4,38 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Palantir — Telecommand Panel</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+    <link rel="stylesheet" href="/src/commands.css" />
   </head>
   <body>
-    <main class="placeholder">
-      <h1>Telecommand panel (PAL-102)</h1>
-      <p>Implementation arrives after PAL-101.</p>
-      <a href="/">← back</a>
+    <main class="commands">
+      <header class="tc-header">
+        <a href="/">← back</a>
+        <h1>Telecommand panel <small style="color:#8b949e;font-size:0.6em;font-weight:normal">PAL-102</small></h1>
+      </header>
+
+      <section class="tc-buttons">
+        <button class="tc" data-command="/Palantir/TC/PING">PING</button>
+        <button class="tc tc-danger" data-command="/Palantir/TC/REBOOT_OBC">REBOOT_OBC</button>
+      </section>
+
+      <div id="feedback" class="feedback">Ready.</div>
+
+      <h2 style="margin: 0 0 0.25rem; font-size: 1rem;">Recent commands</h2>
+      <table class="history">
+        <thead>
+          <tr>
+            <th class="col-time">Time</th>
+            <th class="col-cmd">Command</th>
+            <th class="col-status">Status</th>
+            <th class="col-issuer">Issuer</th>
+          </tr>
+        </thead>
+        <tbody id="historyBody"></tbody>
+      </table>
+      <div id="historyStatus" class="history-status">connecting…</div>
+
+      <script type="module" src="/src/commands.js"></script>
     </main>
   </body>
 </html>

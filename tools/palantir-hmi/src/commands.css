@@ -1,0 +1,90 @@
+main.commands {
+  max-width: 960px;
+  margin: 2rem auto;
+  padding: 0 1.5rem;
+}
+
+.tc-header {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.tc-buttons {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+button.tc {
+  flex: 1;
+  padding: 1rem 1.5rem;
+  background: #21262d;
+  color: #e6edf3;
+  border: 1px solid #30363d;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+button.tc:hover { border-color: #58a6ff; }
+button.tc:disabled { opacity: 0.5; cursor: wait; }
+
+button.tc-danger { border-color: #f08080; color: #f08080; }
+button.tc-danger:hover { background: #4d1a1a; }
+
+.feedback {
+  margin: 0 0 2rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.4rem;
+  border: 1px solid transparent;
+  font-family: ui-monospace, "Consolas", monospace;
+  font-size: 0.9rem;
+  min-height: 2.5rem;
+}
+.feedback-pending { background: #4d3d1a; border-color: #5a4720; color: #f0c674; }
+.feedback-ok      { background: #1a4d2b; border-color: #1f5d34; color: #7ee2a8; }
+.feedback-error   { background: #4d1a1a; border-color: #5d1f1f; color: #f08080; }
+
+table.history {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.5rem;
+}
+table.history th,
+table.history td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #30363d;
+  text-align: left;
+}
+table.history th {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: #8b949e;
+  letter-spacing: 0.05em;
+}
+.col-time, .col-status { font-family: ui-monospace, "Consolas", monospace; font-size: 0.85rem; }
+.col-time { width: 9rem; }
+.col-status { width: 9rem; }
+.col-issuer { color: #8b949e; }
+
+.status-pill {
+  padding: 0.15rem 0.5rem;
+  border-radius: 0.3rem;
+  font-size: 0.75rem;
+  background: #30363d;
+}
+.status-pill.status-sent      { background: #1a4d2b; color: #7ee2a8; }
+.status-pill.status-released  { background: #1a3a4d; color: #7ec8e2; }
+.status-pill.status-queued    { background: #4d3d1a; color: #f0c674; }
+.status-pill.status-rejected,
+.status-pill.status-failed,
+.status-pill.status-timed-out { background: #4d1a1a; color: #f08080; }
+
+.history-status {
+  font-size: 0.75rem;
+  color: #8b949e;
+  margin-top: 0.5rem;
+}
+.history-status.error { color: #f08080; }
