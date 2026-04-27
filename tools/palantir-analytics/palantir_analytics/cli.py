@@ -8,6 +8,7 @@ from pathlib import Path
 import typer
 
 from palantir_analytics.export import run_export
+from palantir_analytics.passes import compute_passes
 from palantir_analytics.plots import plot_altitude, plot_ground_track
 from palantir_analytics.yamcs_client import PalantirArchive
 
@@ -94,9 +95,56 @@ def export(
 
 
 @app.command()
-def passes() -> None:
-    """Predict ground-station visibility passes (PAL-202)."""
-    typer.echo("passes: not implemented yet")
+def passes(
+    start: str = typer.Option(..., "--start", help="Window start, ISO 8601 with tz."),
+    stop: str = typer.Option(..., "--stop", help="Window stop, ISO 8601 with tz."),
+    station_lat: float = typer.Option(
+        48.7363, "--station-lat", help="Station latitude °N (default Banská Bystrica)."
+    ),
+    station_lon: float = typer.Option(
+        19.1462, "--station-lon", help="Station longitude °E (default Banská Bystrica)."
+    ),
+    station_alt: float = typer.Option(
+        346.0, "--station-alt", help="Station altitude in metres (default Banská Bystrica)."
+    ),
+    min_elevation: float = typer.Option(
+        5.0, "--min-elevation", help="AOS/LOS elevation threshold in degrees."
+    ),
+    yamcs_address: str = typer.Option("localhost:8090", "--yamcs-address"),
+    yamcs_instance: str = typer.Option("palantir", "--yamcs-instance"),
+    out: Path = typer.Option(Path("./out"), "--out", help="Output directory."),
+) -> None:
+    """Predict ground-station visibility passes from archived telemetry (PAL-202)."""
+    start_dt = _parse_iso_utc(start)
+    stop_dt = _parse_iso_utc(stop)
+
+    archive = PalantirArchive(address=yamcs_address, instance=yamcs_instance)
+    report = compute_passes(
+        archive=archive,
+        station_lat_deg=station_lat,
+        station_lon_deg=station_lon,
+        station_alt_m=station_alt,
+        start=start_dt,
+        stop=stop_dt,
+        out_dir=out,
+        min_elevation_deg=min_elevation,
+    )
+
+    if not report.passes:
+        typer.secho(
+            f"Warning: no passes >= {min_elevation}° in the requested window.",
+            fg=typer.colors.YELLOW,
+            err=True,
+        )
+
+    typer.echo(f"Wrote {len(report.passes)} passes to {report.csv_path}")
+    for p in report.passes:
+        typer.echo(
+            f"  Pass {p.pass_number}: AOS {p.aos_time.isoformat()} -> "
+            f"LOS {p.los_time.isoformat()}, "
+            f"max el {p.max_elevation_deg:.1f}°, "
+            f"duration {p.duration_seconds:.0f} s"
+        )
 
 
 if __name__ == "__main__":
