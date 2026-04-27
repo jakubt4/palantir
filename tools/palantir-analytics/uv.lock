@@ -511,6 +511,7 @@ dependencies = [
     { name = "cartopy" },
     { name = "matplotlib" },
     { name = "pandas" },
+    { name = "pyyaml" },
     { name = "typer" },
     { name = "yamcs-client" },
 ]
@@ -526,6 +527,7 @@ requires-dist = [
     { name = "cartopy", specifier = "~=0.24" },
     { name = "matplotlib", specifier = "~=3.9" },
     { name = "pandas", specifier = "~=2.2" },
+    { name = "pyyaml", specifier = "~=6.0" },
     { name = "typer", specifier = "~=0.15" },
     { name = "yamcs-client", specifier = "~=1.9" },
 ]

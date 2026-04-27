@@ -14,6 +14,7 @@ from palantir_analytics.plots import (
     plot_ground_track,
     plot_visibility_timeline,
 )
+from palantir_analytics.stations import load_station_config, resolve_station
 from palantir_analytics.yamcs_client import PalantirArchive
 
 app = typer.Typer(
@@ -102,14 +103,20 @@ def export(
 def passes(
     start: str = typer.Option(..., "--start", help="Window start, ISO 8601 with tz."),
     stop: str = typer.Option(..., "--stop", help="Window stop, ISO 8601 with tz."),
-    station_lat: float = typer.Option(
-        48.7363, "--station-lat", help="Station latitude °N (default Banská Bystrica)."
+    config: Path | None = typer.Option(
+        None, "--config", help="Path to stations.yaml registry (PAL-203)."
     ),
-    station_lon: float = typer.Option(
-        19.1462, "--station-lon", help="Station longitude °E (default Banská Bystrica)."
+    station: str | None = typer.Option(
+        None, "--station", help="Named station from --config; overrides default_station."
     ),
-    station_alt: float = typer.Option(
-        346.0, "--station-alt", help="Station altitude in metres (default Banská Bystrica)."
+    station_lat: float | None = typer.Option(
+        None, "--station-lat", help="Override latitude °N (highest precedence)."
+    ),
+    station_lon: float | None = typer.Option(
+        None, "--station-lon", help="Override longitude °E (highest precedence)."
+    ),
+    station_alt: float | None = typer.Option(
+        None, "--station-alt", help="Override altitude in metres (highest precedence)."
     ),
     min_elevation: float = typer.Option(
         5.0, "--min-elevation", help="AOS/LOS elevation threshold in degrees."
@@ -122,12 +129,26 @@ def passes(
     start_dt = _parse_iso_utc(start)
     stop_dt = _parse_iso_utc(stop)
 
+    station_config = load_station_config(config) if config is not None else None
+    resolved_station = resolve_station(
+        config=station_config,
+        station_name=station,
+        lat_override=station_lat,
+        lon_override=station_lon,
+        alt_override=station_alt,
+    )
+    typer.echo(
+        f"Station: {resolved_station.name} "
+        f"({resolved_station.lat_deg:.4f}°N, {resolved_station.lon_deg:.4f}°E, "
+        f"{resolved_station.alt_m:.0f} m)"
+    )
+
     archive = PalantirArchive(address=yamcs_address, instance=yamcs_instance)
     report = compute_passes(
         archive=archive,
-        station_lat_deg=station_lat,
-        station_lon_deg=station_lon,
-        station_alt_m=station_alt,
+        station_lat_deg=resolved_station.lat_deg,
+        station_lon_deg=resolved_station.lon_deg,
+        station_alt_m=resolved_station.alt_m,
         start=start_dt,
         stop=stop_dt,
         out_dir=out,

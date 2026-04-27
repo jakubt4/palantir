@@ -1,0 +1,24 @@
+# Example ground-station registry for palantir-analytics.
+#
+# Copy this file to stations.yaml (or any path) and adapt; pass via:
+#   palantir-analytics passes --config stations.yaml --station <name> ...
+#
+# Schema:
+#   stations: { <name>: { lat_deg, lon_deg, alt_m } }
+#   default_station: <name>   # optional; used when --station is omitted
+
+stations:
+  banska-bystrica:
+    lat_deg: 48.7363
+    lon_deg: 19.1462
+    alt_m:   346
+  kosice:
+    lat_deg: 48.7164
+    lon_deg: 21.2611
+    alt_m:   206
+  bratislava:
+    lat_deg: 48.1486
+    lon_deg: 17.1077
+    alt_m:   152
+
+default_station: banska-bystrica
