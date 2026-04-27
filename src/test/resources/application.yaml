@@ -1,3 +1,6 @@
 palantir:
   uplink:
     port: 0
+  tle:
+    refresh:
+      enabled: false
