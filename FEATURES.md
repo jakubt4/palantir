@@ -47,7 +47,7 @@ The following capabilities are in `master` today and must not be regressed. All 
 
 **Why this is first.** The HMI and analytics tier are the only pieces that consume the baseline telemetry pipeline without requiring any new packet definitions. They validate that the Yamcs WebSocket and Archive APIs behave as advertised, produce visible deliverables for the first sprint review, and unblock downstream integration testing.
 
-### 1.1 PAL-101 — Real-time orbital ground track on CesiumJS 🚧 in progress
+### 1.1 PAL-101 — Real-time orbital ground track on CesiumJS ✅ done (2026-04-27)
 
 - **Objective.** Browser-based 3D operator display that subscribes to `/Palantir/Latitude`, `/Palantir/Longitude`, `/Palantir/Altitude` via the Yamcs WebSocket endpoint (`ws://localhost:8090/api/websocket`, processor `realtime`, instance `palantir`) and renders the spacecraft ground track on a CesiumJS globe.
 - **Technical contract.**
@@ -68,7 +68,7 @@ The following capabilities are in `master` today and must not be regressed. All 
 - **Definition of done.** `python orbital_analysis.py --start 2026-04-13T00:00:00Z --stop 2026-04-13T02:00:00Z` produces all three artifacts against a live Yamcs archive containing at least 2 h of data.
 - **Dependencies.** Palantir Core baseline; at least 2 h of archived telemetry.
 
-### 1.3 PAL-102 — Telecommand control panel with execution feedback
+### 1.3 PAL-102 — Telecommand control panel with execution feedback 🚧 in progress
 
 - **Objective.** Web panel that issues `PING` and `REBOOT_OBC` via the Yamcs REST commanding API and displays command history.
 - **Technical contract.**

@@ -60,21 +60,27 @@ export function subscribeParameters(url, instance, processor, parameterNames, on
       if (frame.type !== "parameters" || !frame.data) return;
 
       // First frame after subscribe carries the numericId<->name mapping.
+      // Yamcs sends each entry as a NamedObjectId object {namespace, name},
+      // not a plain string — flatten to qualified name for callers.
       if (frame.data.mapping) {
         idToName = {};
-        for (const [numId, qname] of Object.entries(frame.data.mapping)) {
-          idToName[numId] = qname;
+        for (const [numId, entry] of Object.entries(frame.data.mapping)) {
+          idToName[numId] = typeof entry === "string"
+            ? entry
+            : `${entry.namespace ?? ""}/${entry.name ?? ""}`.replace(/\/+/g, "/");
         }
       }
       // Older Yamcs builds also include id.name on each value; prefer that.
       for (const val of frame.data.values ?? []) {
-        const name = val.id?.name ?? idToName[val.numericId];
-        if (!name) continue;
+        const qualifiedName = val.id
+          ? `${val.id.namespace ?? ""}/${val.id.name}`.replace(/\/+/g, "/")
+          : idToName[val.numericId];
+        if (!qualifiedName || typeof qualifiedName !== "string") continue;
         const eng = val.engValue ?? {};
         const v = eng.floatValue ?? eng.doubleValue ?? eng.uint32Value ?? eng.sint32Value;
         if (v === undefined) continue;
         const time = val.generationTime ? new Date(val.generationTime) : new Date();
-        onUpdate({ name, value: Number(v), time });
+        onUpdate({ name: qualifiedName, value: Number(v), time });
       }
     };
 
