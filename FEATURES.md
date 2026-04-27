@@ -78,7 +78,7 @@ The following capabilities are in `master` today and must not be regressed. All 
 - **Definition of done.** Panel shows two command buttons; clicks issue HTTP `POST`; a command log refreshes every 5 s with the last 20 entries; `4xx`/`5xx` errors render inline.
 - **Dependencies.** Palantir Core baseline.
 
-### 1.4 PAL-202 — AOS/LOS pass prediction report *(parallel with 1.3)* 🎯 next
+### 1.4 PAL-202 — AOS/LOS pass prediction report *(parallel with 1.3)* 🚧 in progress
 
 - **Objective.** Post-process archived lat/lon telemetry against a ground-station visibility mask and produce a pass-prediction CSV + visibility timeline.
 - **Verified geometric model (spherical Earth, fit-for-purpose for PoC).** Let the ground station have geodetic latitude `φ_gs`, longitude `λ_gs`, and altitude `h_gs`, and the sub-satellite point `(φ_ss, λ_ss)` with spacecraft altitude `h_sat` above the ellipsoid. The Earth central angle `γ` between the station and the sub-satellite point is computed via the Haversine formula:
@@ -99,6 +99,33 @@ The following capabilities are in `master` today and must not be regressed. All 
 - **Default ground station.** **Banská Bystrica** — `48.7363°N, 19.1462°E, 346 m` — the project's default Slovak ground station; configurable via CLI for other sites.
 - **Definition of done.** `pass_report.csv` with `pass_number, aos_time, los_time, max_elevation_deg, duration_seconds`; `visibility_timeline.png` showing `el(t)` with AOS/LOS markers; validated against ≥ 6 h of archive producing ≥ 2 passes for an ISS-class LEO orbit.
 - **Dependencies.** Palantir Core baseline; at least 6 h of archived telemetry.
+
+### 1.5 PAL-203 — Ground-station registry (YAML config)
+
+- **Objective.** YAML-backed ground-station catalogue with CLI override flags, layered onto every analytics tool that takes a station (PAL-202 today, PAL-101 ground-track HMI and PAL-501 conjunction screening later). Eliminates the "hardcoded coordinates per tool" anti-pattern before it spreads.
+- **Technical contract.**
+  - File format: YAML; example schema:
+
+    ```yaml
+    stations:
+      banska-bystrica:
+        lat_deg: 48.7363
+        lon_deg: 19.1462
+        alt_m:   346
+      kosice:
+        lat_deg: 48.7164
+        lon_deg: 21.2611
+        alt_m:   206
+    default_station: banska-bystrica
+    ```
+
+  - CLI flags: `--config <path>` selects the file (**explicit only — no auto-discovery**, predictable beats magical); `--station <name>` selects an entry by name; `--station-lat`/`--station-lon`/`--station-alt` override individual fields.
+  - **Precedence (high → low):** individual `--station-{lat,lon,alt}` flag → `--station <name>` from `--config` → `default_station` from `--config` → built-in default Banská Bystrica.
+  - Validation at config-load: `lat ∈ [-90, 90]°`, `lon ∈ [-180, 180]°`, `alt ∈ [-500, 50_000] m` (Dead Sea floor to high-balloon ceiling); reject malformed YAML or unknown station names with a clear `typer.BadParameter` error.
+  - `tools/palantir-analytics/stations.example.yaml` shipped as a copy-paste starter.
+  - Add `pyyaml ~= 6.0` to runtime deps.
+- **Definition of done.** `palantir-analytics passes --config stations.yaml --station kosice ...` writes a Košice-centred pass report; the same invocation with `--station-lat 50.0` added overrides only the latitude. Unit tests cover precedence resolution and validation rejection of out-of-range coords or unknown station names.
+- **Dependencies.** §1.4 PAL-202 (the first consumer of station coordinates).
 
 ---
 
@@ -311,7 +338,8 @@ Baseline (§0)
  ├── PAL-101  (§1.1)  HMI ground track
  ├── PAL-201  (§1.2)  analytics pipeline     ║ parallel
  ├── PAL-102  (§1.3)  command panel          ║ parallel
- └── PAL-202  (§1.4)  AOS/LOS report         ║ parallel
+ ├── PAL-202  (§1.4)  AOS/LOS report         ║ parallel
+ └── PAL-203  (§1.5)  station registry       ◄── after PAL-202
        │
        ▼
  ├── PAL-301  (§2.1)  XTCE env payload  ◄── architectural gatekeeper
