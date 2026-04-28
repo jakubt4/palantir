@@ -15,7 +15,6 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 /**
  * Unit tests for the TLE auto-refresh scheduler. Network calls and
@@ -36,17 +35,17 @@ class TleRefreshServiceTest {
     private OrbitPropagationService orbitPropagationService;
 
     @Mock
-    private RestClient.Builder restClientBuilder;
-
-    @Mock
     private RestClient restClient;
 
     private TleRefreshService service;
 
     @BeforeEach
     void setUp() {
-        when(restClientBuilder.build()).thenReturn(restClient);
-        service = new TleRefreshService(orbitPropagationService, restClientBuilder);
+        // The CelesTrak RestClient is built upstream by RestClientConfiguration; the
+        // service receives a fully-configured instance via @Qualifier injection.
+        // Tests don't exercise the network — fetchTleBody() is stubbed via spy in
+        // the http-failure case, and applyTle(...) is called directly otherwise.
+        service = new TleRefreshService(orbitPropagationService, restClient);
         ReflectionTestUtils.setField(service, "celestrakUrl", "https://example.test/tle");
         ReflectionTestUtils.setField(service, "satelliteName", "ISS (ZARYA)");
     }

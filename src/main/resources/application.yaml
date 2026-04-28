@@ -18,6 +18,11 @@ yamcs:
     port: ${YAMCS_UDP_PORT:10000}
 
 palantir:
+  http:
+    celestrak:
+      # See CelestrakHttpProperties for rationale on these values.
+      connect-timeout: 5s
+      read-timeout: 10s
   tle:
     refresh:
       enabled: true

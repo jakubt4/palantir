@@ -1,6 +1,8 @@
 package io.github.jakubt4.palantir.service;
 
+import io.github.jakubt4.palantir.config.RestClientConfiguration;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -43,10 +45,11 @@ public class TleRefreshService {
     @Value("${palantir.tle.refresh.satellite-name:ISS (ZARYA)}")
     private String satelliteName;
 
-    public TleRefreshService(final OrbitPropagationService orbitPropagationService,
-                             final RestClient.Builder restClientBuilder) {
+    public TleRefreshService(
+            final OrbitPropagationService orbitPropagationService,
+            @Qualifier(RestClientConfiguration.CELESTRAK_REST_CLIENT) final RestClient celestrakRestClient) {
         this.orbitPropagationService = orbitPropagationService;
-        this.restClient = restClientBuilder.build();
+        this.restClient = celestrakRestClient;
     }
 
     /**
