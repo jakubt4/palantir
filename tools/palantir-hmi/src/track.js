@@ -91,18 +91,33 @@ viewer.entities.add({
   },
 });
 
-// Live telemetry buffer — last value for each parameter.
-const latest = { lat: undefined, lon: undefined, alt_km: undefined, time: undefined };
+// Live telemetry buffer — last value AND its generationTime for each
+// parameter. Yamcs sends Latitude/Longitude/Altitude as three separate
+// values in one WS frame; if we pushed a sample on every parameter
+// update we'd push three per tick, and two of them would be partial
+// mixes of "new value of one axis + stale values of the other two".
+// At ISS speed (~7 km/s) those mixes are kilometres off the real
+// trajectory and render as a jagged/serrated trail. We only push when
+// all three timestamps agree.
+const latest = {
+  lat: undefined, latTime: undefined,
+  lon: undefined, lonTime: undefined,
+  alt_km: undefined, altTime: undefined,
+};
 const altitudeReadout = document.getElementById("altitudeReadout");
 const statusReadout = document.getElementById("statusReadout");
 
 function maybePushSample() {
-  const { lat, lon, alt_km, time } = latest;
+  const { lat, lon, alt_km, latTime, lonTime, altTime } = latest;
   if (lat === undefined || lon === undefined || alt_km === undefined) return;
+  if (!latTime || !lonTime || !altTime) return;
+  // Require synchronised tick — all three values from the same packet.
+  const t = latTime.getTime();
+  if (lonTime.getTime() !== t || altTime.getTime() !== t) return;
 
   const metersFromKm = alt_km * 1000.0;  // ← The km→m boundary fix.
   const cart = Cesium.Cartesian3.fromDegrees(lon, lat, metersFromKm);
-  const julian = Cesium.JulianDate.fromDate(time);
+  const julian = Cesium.JulianDate.fromDate(latTime);
 
   positionProperty.addSample(julian, cart);
   trailSamples.push({ julian, cart });
@@ -126,10 +141,9 @@ subscribeParameters(
   PROCESSOR,
   ["/Palantir/Latitude", "/Palantir/Longitude", "/Palantir/Altitude"],
   ({ name, value, time }) => {
-    latest.time = time;
-    if (name.endsWith("/Latitude")) latest.lat = value;
-    else if (name.endsWith("/Longitude")) latest.lon = value;
-    else if (name.endsWith("/Altitude")) latest.alt_km = value;
+    if (name.endsWith("/Latitude"))       { latest.lat = value;    latest.latTime = time; }
+    else if (name.endsWith("/Longitude")) { latest.lon = value;    latest.lonTime = time; }
+    else if (name.endsWith("/Altitude"))  { latest.alt_km = value; latest.altTime = time; }
     maybePushSample();
   },
   (state) => {
