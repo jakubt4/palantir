@@ -4,6 +4,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+import org.orekit.time.AbsoluteDate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -40,12 +41,18 @@ class OrbitPropagationServiceTest {
         orbitPropagationService.updateTle("ISS (ZARYA)", TLE_LINE1, TLE_LINE2);
         orbitPropagationService.propagateAndSend();
 
+        final var timeCaptor = ArgumentCaptor.forClass(AbsoluteDate.class);
         final var latCaptor = ArgumentCaptor.forClass(Float.class);
         final var lonCaptor = ArgumentCaptor.forClass(Float.class);
         final var altCaptor = ArgumentCaptor.forClass(Float.class);
 
         verify(ccsdsTelemetrySender, atLeastOnce())
-                .sendPacket(latCaptor.capture(), lonCaptor.capture(), altCaptor.capture());
+                .sendPacket(timeCaptor.capture(),
+                        latCaptor.capture(), lonCaptor.capture(), altCaptor.capture());
+
+        // Generation time must be the propagator's "now" for that tick (PAL-105).
+        assertThat(timeCaptor.getAllValues()).allSatisfy(t ->
+                assertThat(t).isNotNull());
 
         // Latitude must be within physical bounds (ISS inclination ~51.6°)
         assertThat(latCaptor.getAllValues()).allSatisfy(lat ->

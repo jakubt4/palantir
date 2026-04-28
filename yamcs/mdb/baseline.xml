@@ -28,6 +28,29 @@
                 <IntegerDataEncoding sizeInBits="16" encoding="unsigned" byteOrder="mostSignificantByteFirst"/>
             </IntegerParameterType>
 
+            <!-- CCSDS 133.0-B-2 Primary Header sub-fields, split bit-by-bit so container
+                 restrictions can match on APID alone (canonical XTCE pattern; matches
+                 every Yamcs example MDB and ESA flight MDBs). Without this, a restriction
+                 on packet_id breaks the moment Sec Header Flag flips. -->
+            <IntegerParameterType name="ccsds_version_t" signed="false" sizeInBits="3">
+                <IntegerDataEncoding sizeInBits="3" encoding="unsigned"/>
+            </IntegerParameterType>
+            <IntegerParameterType name="ccsds_type_t" signed="false" sizeInBits="1">
+                <IntegerDataEncoding sizeInBits="1" encoding="unsigned"/>
+            </IntegerParameterType>
+            <IntegerParameterType name="ccsds_sec_hdr_flag_t" signed="false" sizeInBits="1">
+                <IntegerDataEncoding sizeInBits="1" encoding="unsigned"/>
+            </IntegerParameterType>
+            <IntegerParameterType name="ccsds_apid_t" signed="false" sizeInBits="11">
+                <IntegerDataEncoding sizeInBits="11" encoding="unsigned"/>
+            </IntegerParameterType>
+            <IntegerParameterType name="ccsds_grouping_flags_t" signed="false" sizeInBits="2">
+                <IntegerDataEncoding sizeInBits="2" encoding="unsigned"/>
+            </IntegerParameterType>
+            <IntegerParameterType name="ccsds_seq_count_14_t" signed="false" sizeInBits="14">
+                <IntegerDataEncoding sizeInBits="14" encoding="unsigned"/>
+            </IntegerParameterType>
+
             <FloatParameterType name="float32_t" sizeInBits="32">
                 <UnitSet><Unit>deg</Unit></UnitSet>
                 <FloatDataEncoding sizeInBits="32" encoding="IEEE754_1985" byteOrder="mostSignificantByteFirst"/>
@@ -38,12 +61,36 @@
                 <FloatDataEncoding sizeInBits="32" encoding="IEEE754_1985" byteOrder="mostSignificantByteFirst"/>
             </FloatParameterType>
 
+            <!-- CCSDS 301.0-B-4 §3.2 Unsegmented Time Code (CUC), 4 + 2 octets, no P-field.
+                 Yamcs decodes via CfsPacketPreprocessor; these parameters are also exposed
+                 individually so the raw CUC fields are queryable from the archive. -->
+            <IntegerParameterType name="cuc_coarse_t" signed="false" sizeInBits="32">
+                <UnitSet><Unit>s</Unit></UnitSet>
+                <IntegerDataEncoding sizeInBits="32" encoding="unsigned" byteOrder="mostSignificantByteFirst"/>
+            </IntegerParameterType>
+
+            <IntegerParameterType name="cuc_fine_t" signed="false" sizeInBits="16">
+                <IntegerDataEncoding sizeInBits="16" encoding="unsigned" byteOrder="mostSignificantByteFirst"/>
+            </IntegerParameterType>
+
         </ParameterTypeSet>
 
         <ParameterSet>
-            <Parameter name="ccsds_packet_id" parameterTypeRef="uint16_t"/>
-            <Parameter name="ccsds_seq_count" parameterTypeRef="uint16_t"/>
+            <!-- Primary Header (6 octets) split into individual fields. -->
+            <Parameter name="ccsds_version" parameterTypeRef="ccsds_version_t"/>
+            <Parameter name="ccsds_type" parameterTypeRef="ccsds_type_t"/>
+            <Parameter name="ccsds_sec_hdr_flag" parameterTypeRef="ccsds_sec_hdr_flag_t"/>
+            <Parameter name="ccsds_apid" parameterTypeRef="ccsds_apid_t"/>
+            <Parameter name="ccsds_grouping_flags" parameterTypeRef="ccsds_grouping_flags_t"/>
+            <Parameter name="ccsds_seq_count" parameterTypeRef="ccsds_seq_count_14_t"/>
             <Parameter name="ccsds_length" parameterTypeRef="uint16_t"/>
+
+            <Parameter name="ccsds_time_coarse" parameterTypeRef="cuc_coarse_t">
+                <ShortDescription>CUC coarse time — TAI seconds since 1958-01-01</ShortDescription>
+            </Parameter>
+            <Parameter name="ccsds_time_fine" parameterTypeRef="cuc_fine_t">
+                <ShortDescription>CUC fine time — fractional seconds (units of 1/65536 s)</ShortDescription>
+            </Parameter>
 
             <Parameter name="Latitude" parameterTypeRef="float32_t">
                 <ShortDescription>Satellite Geodetic Latitude</ShortDescription>
@@ -60,16 +107,30 @@
 
             <SequenceContainer name="CCSDS_Packet_Base" abstract="true">
                 <EntryList>
-                    <ParameterRefEntry parameterRef="ccsds_packet_id"/>
+                    <ParameterRefEntry parameterRef="ccsds_version"/>
+                    <ParameterRefEntry parameterRef="ccsds_type"/>
+                    <ParameterRefEntry parameterRef="ccsds_sec_hdr_flag"/>
+                    <ParameterRefEntry parameterRef="ccsds_apid"/>
+                    <ParameterRefEntry parameterRef="ccsds_grouping_flags"/>
                     <ParameterRefEntry parameterRef="ccsds_seq_count"/>
                     <ParameterRefEntry parameterRef="ccsds_length"/>
                 </EntryList>
             </SequenceContainer>
 
+            <!-- TM Secondary Header — CCSDS 301.0-B-4 CUC time, 4 + 2 octets, TAI 1958.
+                 Future TM packets that need spacecraft generation time inherit from this. -->
+            <SequenceContainer name="CCSDS_Tm_Packet_Base" abstract="true">
+                <BaseContainer containerRef="CCSDS_Packet_Base"/>
+                <EntryList>
+                    <ParameterRefEntry parameterRef="ccsds_time_coarse"/>
+                    <ParameterRefEntry parameterRef="ccsds_time_fine"/>
+                </EntryList>
+            </SequenceContainer>
+
             <SequenceContainer name="Palantir_Nav_Packet">
-                <BaseContainer containerRef="CCSDS_Packet_Base">
+                <BaseContainer containerRef="CCSDS_Tm_Packet_Base">
                     <RestrictionCriteria>
-                        <Comparison parameterRef="ccsds_packet_id" value="100" useCalibratedValue="false"/>
+                        <Comparison parameterRef="ccsds_apid" value="100" useCalibratedValue="false"/>
                     </RestrictionCriteria>
                 </BaseContainer>
 

@@ -151,6 +151,22 @@ The following capabilities are in `master` today and must not be regressed. All 
 - **Definition of done.** Service refreshes TLE on the configured schedule; logs `Refreshed TLE from CelesTrak` with the new TLE epoch on success; existing 1 Hz telemetry pipeline continues uninterrupted across the swap. Unit tests cover happy-path parsing, two-line vs. three-line response handling, HTTP failure path, and the kill-switch. Live verification: shorten `interval-ms` to 5 s, watch the log show a fresh epoch close to wall-clock time.
 - **Dependencies.** Palantir Core baseline. **Note on §0 core-isolation:** this ticket modifies baseline Java code rather than living in an independent project, because *the propagator is the baseline* — automated TLE refresh is a baseline-quality enhancement, not a feature add-on layered through documented network interfaces. Single-developer PoC context.
 
+### 1.7 PAL-105 — CCSDS Secondary Header with CUC timestamp ✅ done (2026-04-28)
+
+- **Objective.** Embed a CCSDS Time Code Format (CUC, 4 octets coarse + 2 octets fine, TAI Level-1 epoch 1958-01-01) in every TM packet's Secondary Header so Yamcs stamps each packet's `generation_time` with the spacecraft-side propagation time rather than ground reception time. Closes the Rule-26 violation `useLocalGenerationTime: true` and aligns the digital twin's wire format with real flight TM packets.
+- **Technical contract.**
+  - Primary Header bit `Sec Header Flag` set to 1.
+  - Secondary Header layout:
+    - bytes 6–9: 32-bit coarse seconds since 1958-01-01 TAI (big-endian unsigned)
+    - bytes 10–11: 16-bit fractional seconds (units of 1/65536 s, big-endian unsigned)
+  - Packet length grows from 18 to 24 bytes.
+  - `OrbitPropagationService` passes its `AbsoluteDate now` to `CcsdsTelemetrySender.sendPacket(...)` so the packet's embedded time is the actual propagation tick time, not a separate sender-side wall clock.
+  - `CcsdsTelemetrySender` initializes a TAI 1958-01-01 reference `AbsoluteDate` in `@PostConstruct` (after `OrekitConfig` has loaded data), then computes `generationTime.durationFrom(taiEpoch)` to derive coarse + fine octets. Orekit handles the TAI-UTC offset (37 s as of 2026) correctly without manual leap-second tracking.
+  - XTCE: new abstract `CCSDS_Tm_Packet_Base` container inheriting from `CCSDS_Packet_Base` and adding `ccsds_time_coarse` (uint32) + `ccsds_time_fine` (uint16); `Palantir_Nav_Packet` reparents.
+  - Yamcs config: switch from `GenericPacketPreprocessor` (`useLocalGenerationTime: true`) to `org.yamcs.tctm.cfs.CfsPacketPreprocessor` with `timeEncoding.epoch: TAI` — this concrete CCSDS preprocessor reads `(uint32 @ 6, uint16 @ 10)` natively as CUC, no implicit-P-field config needed.
+- **Definition of done.** Each archived parameter shows `generationTime` matching the Spring Boot propagator tick within ±100 ms (network jitter dominated, not preprocessor offset). Live verification: query `/api/archive/palantir/parameters/Palantir/Latitude?limit=1` and compare its `generationTime` to the `[ISS (ZARYA)] Position — ...` log line of the same tick — should agree to ±10 ms.
+- **Dependencies.** Palantir Core baseline. Closes Rule-26 violation #2 in CLAUDE.md.
+
 ---
 
 ## 2. Phase B — Mission Database Expansion
@@ -364,6 +380,7 @@ Baseline (§0)
  ├── PAL-102  (§1.3)  command panel          ║ parallel
  ├── PAL-202  (§1.4)  AOS/LOS report         ║ parallel
  ├── PAL-104  (§1.6)  TLE auto-refresh       ║ parallel (baseline enhancement)
+ ├── PAL-105  (§1.7)  CCSDS Sec Header time  ║ parallel (baseline enhancement)
  └── PAL-203  (§1.5)  station registry       ◄── after PAL-202
        │
        ▼

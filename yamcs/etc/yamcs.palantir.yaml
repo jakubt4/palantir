@@ -14,13 +14,17 @@ dataLinks:
     class: org.yamcs.tctm.UdpTmDataLink
     stream: tm_realtime
     port: 10000
-    packetPreprocessorClassName: org.yamcs.tctm.GenericPacketPreprocessor
+    # CfsPacketPreprocessor reads the Secondary Header CUC time at byte 6
+    # (4-byte uint32 coarse + 2-byte uint16 fine) and stamps each packet's
+    # generation_time from it. Replaces useLocalGenerationTime=true which
+    # used ground reception time as a stand-in for spacecraft time
+    # (CLAUDE.md Rule 26).
+    packetPreprocessorClassName: org.yamcs.tctm.cfs.CfsPacketPreprocessor
     packetPreprocessorArgs:
-      timestampOffset: 0
-      useLocalGenerationTime: true
-      seqCountOffset: 2
       errorDetection:
         type: NONE
+      timeEncoding:
+        epoch: TAI
   - name: udp-tc
     class: org.yamcs.tctm.UdpTcDataLink
     stream: tc_realtime

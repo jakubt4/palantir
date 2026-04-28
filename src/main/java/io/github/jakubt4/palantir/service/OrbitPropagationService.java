@@ -121,7 +121,7 @@ public class OrbitPropagationService {
                     String.format("%.2f", lonDeg),
                     String.format("%.2f", altKm));
 
-            ccsdsTelemetrySender.sendPacket((float) latDeg, (float) lonDeg, (float) altKm);
+            ccsdsTelemetrySender.sendPacket(now, (float) latDeg, (float) lonDeg, (float) altKm);
         } catch (final Exception e) {
             log.error("[{}] Propagation error: {}", activeSatelliteName.get(), e.getMessage());
         }
