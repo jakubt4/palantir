@@ -18,7 +18,7 @@ Thumbs.db
 *.log
 
 # Project-specific
-src/main/resources/orekit-data-main.zip
+palantir-core/src/main/resources/orekit-data-main.zip
 .claude/settings.local.json
 nul
 

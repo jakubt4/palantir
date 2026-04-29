@@ -18,7 +18,7 @@ services:
 
   palantir-core:
     build:
-      context: .
+      context: ./palantir-core
       dockerfile: Dockerfile
     container_name: palantir-core
     ports:

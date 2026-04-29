@@ -179,6 +179,7 @@ Verify at http://localhost:8090.
 **Terminal 2 — Physics Engine (Spring Boot):**
 
 ```bash
+cd palantir-core
 mvn package
 mvn spring-boot:run
 ```
@@ -258,49 +259,66 @@ Ingest a TLE and start (or update) orbit propagation.
 ```
 palantir/
 ├── docker-compose.yaml                       # Full-stack orchestration (HTTP + UDP ports)
-├── Dockerfile                                # Multi-stage Spring Boot build (Maven → JRE 21)
-├── pom.xml                                   # Maven build with JaCoCo coverage
 ├── FEATURES.md                               # Feature tracking and roadmap
+├── CLAUDE.md                                 # Collaboration contract for the AI assistant
 ├── LICENSE                                   # Project license
 │
-├── src/main/java/io/github/jakubt4/palantir/
-│   ├── PalantirApplication.java              # @SpringBootApplication + @EnableScheduling
-│   ├── config/
-│   │   └── OrekitConfig.java                 # @PostConstruct — loads orekit-data.zip into Orekit
-│   ├── controller/
-│   │   └── TleIngestionController.java       # POST /api/orbit/tle — validates & delegates
-│   ├── service/
-│   │   ├── OrbitPropagationService.java      # SGP4 propagation @1Hz, atomic TLE hot-swap
-│   │   ├── CcsdsTelemetrySender.java         # CCSDS 133.0-B-1 encoding, UDP transport
-│   │   └── uplink/
-│   │       └── UdpCommandReceiver.java       # TC listener on UDP :10001, opcode dispatch
-│   └── dto/
-│       ├── TleRequest.java                   # Inbound record: satelliteName, line1, line2
-│       └── TleResponse.java                  # Outbound record: satelliteName, status, message
+├── palantir-core/                            # Java/Maven module — Spring Boot physics engine
+│   ├── pom.xml                               # Maven build with JaCoCo coverage
+│   ├── Dockerfile                            # Multi-stage Spring Boot build (Maven → JRE 21)
+│   ├── .dockerignore
+│   │
+│   ├── src/main/java/io/github/jakubt4/palantir/
+│   │   ├── PalantirApplication.java          # @SpringBootApplication + @EnableScheduling
+│   │   ├── config/
+│   │   │   ├── OrekitConfig.java             # @PostConstruct — loads orekit-data.zip
+│   │   │   ├── RestClientConfiguration.java  # Named RestClient beans for outbound HTTP
+│   │   │   └── CelestrakHttpProperties.java  # @ConfigurationProperties (timeouts)
+│   │   ├── controller/
+│   │   │   └── TleIngestionController.java   # POST /api/orbit/tle — validates & delegates
+│   │   ├── service/
+│   │   │   ├── OrbitPropagationService.java  # SGP4 propagation @1Hz, atomic TLE hot-swap
+│   │   │   ├── CcsdsTelemetrySender.java     # CCSDS 133.0-B-2 encoding (24 B w/ Sec Hdr CUC), UDP
+│   │   │   ├── TleRefreshService.java        # @Scheduled CelesTrak GP catalog refresh (PAL-104)
+│   │   │   └── uplink/
+│   │   │       └── UdpCommandReceiver.java   # TC listener on UDP :10001, opcode dispatch
+│   │   └── dto/
+│   │       ├── TleRequest.java               # Inbound record: satelliteName, line1, line2
+│   │       └── TleResponse.java              # Outbound record: satelliteName, status, message
+│   │
+│   ├── src/test/java/io/github/jakubt4/palantir/
+│   │   ├── PalantirApplicationTests.java     # Integration — full context load
+│   │   ├── controller/
+│   │   │   └── TleIngestionControllerTest.java   # @WebMvcTest — valid/blank/bad TLE
+│   │   └── service/
+│   │       ├── OrbitPropagationServiceTest.java  # @SpringBootTest — init, propagation
+│   │       └── TleRefreshServiceTest.java        # @ExtendWith(MockitoExtension) — 8 tests
+│   │
+│   └── src/main/resources/
+│       ├── application.yaml                  # UDP target, TLE refresh config, HTTP timeouts
+│       └── orekit-data.zip                   # Orekit physics data (leap seconds, EOPs)
 │
-├── src/test/java/io/github/jakubt4/palantir/
-│   ├── PalantirApplicationTests.java         # Integration — full context load
-│   ├── controller/
-│   │   └── TleIngestionControllerTest.java   # @WebMvcTest — 3 tests (valid, blank, bad TLE)
-│   └── service/
-│       └── OrbitPropagationServiceTest.java  # @SpringBootTest — 2 tests (init, propagation)
+├── tools/                                    # Non-Java tooling
+│   ├── palantir-analytics/                   # Python CLI (PAL-201/202/203)
+│   └── palantir-hmi/                         # Vite + CesiumJS browser HMI (PAL-101/102)
 │
-├── src/main/resources/
-│   ├── application.yaml                      # Virtual Threads, UDP target, logging config
-│   └── orekit-data.zip                       # Orekit physics data (leap seconds, EOPs)
+├── yamcs/                                    # Custom Yamcs Docker image
+│   ├── Dockerfile                            # FROM yamcs/example-simulation:5.12.2
+│   ├── etc/
+│   │   ├── yamcs.yaml                        # Server — HTTP :8090, CORS, instance list
+│   │   ├── yamcs.palantir.yaml               # Instance — UdpTmDataLink, UdpTcDataLink, CfsPacketPreprocessor (Sec Hdr CUC, TAI epoch), stream→processor mapping
+│   │   └── processor.yaml                    # Processor — StreamTmPacketProvider, StreamTcCommandReleaser, StreamParameterProvider, archives
+│   └── mdb/
+│       ├── baseline.xml                      # SpaceSystem "Palantir" — CCSDS Primary Header bit-fields + Sec Hdr CUC + nav TM (APID=100)
+│       ├── features/
+│       │   └── commands.xml                  # SpaceSystem "TC" nested at /Palantir/TC — PING + REBOOT_OBC
+│       └── README.md                         # Pattern: add new features as features/*.xml + subLoaders entry
 │
-└── yamcs/                                    # Custom Yamcs Docker image
-    ├── Dockerfile                            # FROM yamcs/example-simulation:5.12.2
-    ├── etc/
-    │   ├── yamcs.yaml                        # Server — HTTP :8090, CORS, instance list
-    │   ├── yamcs.palantir.yaml               # Instance — UdpTmDataLink, UdpTcDataLink, GenericPacketPreprocessor, stream→processor mapping
-    │   └── processor.yaml                    # Processor — StreamTmPacketProvider, StreamTcCommandReleaser, StreamParameterProvider, archives
-    └── mdb/
-        ├── baseline.xml                      # SpaceSystem "Palantir" — CCSDS primitives + nav TM (APID=100)
-        ├── features/
-        │   └── commands.xml                  # SpaceSystem "TC" nested at /Palantir/TC — PING + REBOOT_OBC
-        └── README.md                         # Pattern: add new features as features/*.xml + subLoaders entry
+└── docs/                                     # Project documentation + archived roadmap drafts
+    └── archive/                              # Pre-Phase-A roadmap drafts (historical only)
 ```
+
+The three top-level work folders (`palantir-core/`, `tools/`, `yamcs/`) are designed to be opened independently in different IDEs without cross-talk: Eclipse for `palantir-core/`, Theia for `tools/`, no IDE for `yamcs/` (just text editing). Claude operates from the repo root via gitbash and references modules by their relative path.
 
 ## Yamcs Configuration
 
@@ -336,13 +354,18 @@ REBOOT_OBC       ← OpCode: 0x02 (uint8)
 
 ## Testing
 
+Run from inside the Java module:
+
 ```bash
-mvn test                                   # Run all 6 tests + JaCoCo coverage
+cd palantir-core
+mvn test                                   # Run all tests + JaCoCo coverage
 mvn test -Dtest=TleIngestionControllerTest # Run a single test class
 mvn clean                                  # Clean build artifacts
 ```
 
-Coverage report: `target/site/jacoco/index.html`
+…or from the repo root with `mvn -f palantir-core/pom.xml test`.
+
+Coverage report: `palantir-core/target/site/jacoco/index.html`
 
 | Test Class | Type | Tests | What It Verifies |
 |---|---|---|---|
@@ -364,9 +387,9 @@ In Docker Compose, `YAMCS_UDP_HOST` is set to `yamcs` so the Spring Boot contain
 
 ## Orekit Physics Data
 
-Orekit requires reference data (leap seconds, Earth orientation parameters, planetary ephemerides) to perform frame transformations and time conversions. The file `src/main/resources/orekit-data.zip` must be present on the classpath.
+Orekit requires reference data (leap seconds, Earth orientation parameters, planetary ephemerides) to perform frame transformations and time conversions. The file `palantir-core/src/main/resources/orekit-data.zip` must be present on the classpath.
 
-If missing, download from the [Orekit Data repository](https://gitlab.orekit.org/orekit/orekit-data) and place it in `src/main/resources/`.
+If missing, download from the [Orekit Data repository](https://gitlab.orekit.org/orekit/orekit-data) and place it in `palantir-core/src/main/resources/`.
 
 ## Future Improvements
 

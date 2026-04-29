@@ -101,7 +101,8 @@ docker compose up --build
 docker build -t palantir-yamcs yamcs/
 docker run --rm --name yamcs -p 8090:8090 -p 10000:10000/udp palantir-yamcs
 
-# Build & run Spring Boot (Terminal 2)
+# Build & run Spring Boot (Terminal 2; from repo root)
+cd palantir-core
 mvn package
 mvn spring-boot:run
 
@@ -110,23 +111,25 @@ curl -X POST http://localhost:8080/api/orbit/tle \
   -H "Content-Type: application/json" \
   -d '{"satelliteName":"ISS","line1":"1 25544U ...","line2":"2 25544 ..."}'
 
-# Run all tests
-mvn test
+# Run all tests (from palantir-core/, OR use mvn -f from repo root)
+cd palantir-core && mvn test
+# or
+mvn -f palantir-core/pom.xml test
 
 # Run a single test class
-mvn test -Dtest=TleIngestionControllerTest
+cd palantir-core && mvn test -Dtest=TleIngestionControllerTest
 
 # Clean build artifacts
-mvn clean
+cd palantir-core && mvn clean
 ```
 
 ## Tech Stack
 
 - **Java 21** (required — Virtual Threads enabled via `application.yaml`)
 - **Spring Boot 3.2.5** with `@EnableScheduling` for periodic telemetry
-- **Orekit 12.2** for orbital mechanics (requires `orekit-data.zip` in `src/main/resources/`)
+- **Orekit 12.2** for orbital mechanics (requires `orekit-data.zip` in `palantir-core/src/main/resources/`)
 - **Lombok** for boilerplate reduction (`@Slf4j`, `@RequiredArgsConstructor`)
-- **Maven** as build tool, **JaCoCo** for code coverage (`target/site/jacoco/index.html`)
+- **Maven** as build tool, **JaCoCo** for code coverage (`palantir-core/target/site/jacoco/index.html`)
 - **Yamcs 5.12.2** as mission control (custom Docker image based on `yamcs/example-simulation:5.12.2`)
 - **Docker Compose** for full-stack orchestration (Yamcs + Spring Boot)
 
@@ -149,7 +152,7 @@ The app is a Spring Boot service that initializes Orekit physics data at startup
   - `mdb/features/commands.xml` — `<SpaceSystem name="TC">` nested under `/Palantir` via `subLoaders`: PING (opcode 0x01) and REBOOT_OBC (opcode 0x02). Yamcs paths: `/Palantir/TC/PING`, `/Palantir/TC/REBOOT_OBC`. Yamcs requires unique SpaceSystem names across files — sharing a name raises `IllegalArgumentException: there is already a subsystem with name X`.
   - `mdb/README.md` — pattern for adding new features (new XTCE file under `features/` with its own SpaceSystem name + `subLoaders` entry in `yamcs.palantir.yaml`).
 - **`docker-compose.yaml`** (project root) — Orchestrates `yamcs` and `palantir-core` services. Yamcs has a healthcheck (`GET /api/`), persistent volume (`palantir_yamcs_data`), and the Spring Boot service depends on Yamcs start (uses `service_started`, not `service_healthy`, so `palantir-core` joins the Docker network before Yamcs initializes its `UdpTcDataLink` — `service_healthy` would cause a permanent DNS resolution failure). `YAMCS_UDP_HOST=yamcs` env var enables Docker DNS resolution. Exposes UDP 10001 for telecommand uplink.
-- **`Dockerfile`** (project root) — Multi-stage build for the Spring Boot app: Maven + JDK 21 build stage, JRE 21 runtime stage.
+- **`palantir-core/Dockerfile`** — Multi-stage build for the Spring Boot app: Maven + JDK 21 build stage, JRE 21 runtime stage. `docker-compose.yaml` references it via `build.context: ./palantir-core`.
 
 ## Testing
 
@@ -159,13 +162,14 @@ Tests use JUnit 5, Mockito, and AssertJ (all provided by `spring-boot-starter-te
 - **Service tests** (`service/OrbitPropagationServiceTest`) — `@SpringBootTest` with `@MockBean` for `CcsdsTelemetrySender`. Requires full Spring context (Orekit data must load). Uses `ArgumentCaptor<Float>` to validate propagated orbital values are physically plausible (lat ±90, lon ±180, alt > 0).
 - **Integration test** (`PalantirApplicationTests`) — Validates full context loads.
 
-Note: `@SpringBootTest` tests start the scheduler, so `OrbitPropagationServiceTest` uses `Mockito.clearInvocations()` in `@BeforeEach` and `atLeastOnce()` verification to handle concurrent scheduler calls. A test-specific `application.yaml` (`src/test/resources/`) sets `palantir.uplink.port=0` so `UdpCommandReceiver` binds to an ephemeral port and avoids conflicts.
+Note: `@SpringBootTest` tests start the scheduler, so `OrbitPropagationServiceTest` uses `Mockito.clearInvocations()` in `@BeforeEach` and `atLeastOnce()` verification to handle concurrent scheduler calls. A test-specific `application.yaml` (`palantir-core/src/test/resources/`) sets `palantir.uplink.port=0` so `UdpCommandReceiver` binds to an ephemeral port and avoids conflicts.
 
 ## Key Paths
 
-- Entry point: `src/main/java/io/github/jakubt4/palantir/PalantirApplication.java`
-- Config: `src/main/resources/application.yaml`
-- Orekit physics data: `src/main/resources/orekit-data.zip` (must be present; download from Orekit GitLab if missing)
+- Java module root: `palantir-core/` (Maven project; open this directory in Eclipse, run `mvn` from inside it)
+- Entry point: `palantir-core/src/main/java/io/github/jakubt4/palantir/PalantirApplication.java`
+- Config: `palantir-core/src/main/resources/application.yaml`
+- Orekit physics data: `palantir-core/src/main/resources/orekit-data.zip` (must be present; download from Orekit GitLab if missing)
 - Yamcs Docker config: `yamcs/` (Dockerfile, XTCE MDB, instance/server/processor config)
 - Docker Compose: `docker-compose.yaml` (project root)
 - Package namespace: `io.github.jakubt4.palantir`
