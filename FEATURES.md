@@ -43,6 +43,107 @@ The following capabilities are in `master` today and must not be regressed. All 
 
 ---
 
+## 0.1 Phase 0.1 — Mission Orchestration Platform *(in development, parallel to Phase A; underpins multi-spacecraft work in later phases)*
+
+**Why this phase exists.** Phase 0.1 is not a feature tier — it is the *platform layer* that lets the system host more than one spacecraft, more than one mission, and more than one tenant. Decision to build it now is informed by prior MD-SAL v2 / OpenDaylight orchestrator work; the schema design risk that normally argues "wait for the rule of three" doesn't apply when the engineer has already shipped a comparable orchestrator. Phase 0.1 also makes Phase D's conjunction-screening demo materially richer: instead of "ISS vs. CelesTrak catalogue", the demo becomes "operator imports a mission with two spacecraft, conjunction detector flags an upcoming close approach between the two, evasion is approved and routed".
+
+**Out of MD-SAL inheritance.** The orchestrator borrows the *philosophy* (declarative model = source of truth, runtime reconciles, REST API parallel to model) but **not** the implementation primitives (no NETCONF, no RESTCONF, no datastore abstraction, no two-phase commit, no OSGi/Karaf, no YANG). Spring Boot REST + YAML model + JSON Schema validation + WebSocket events. Satellite-domain nouns are first-class: `Mission`, `Spacecraft`, `Constellation`, `GroundStation`, `Pass`, APID allocation, operational mode.
+
+### 0.1.1 PAL-001 — Mission model schema
+
+- **Objective.** Declarative YAML schema describing a complete mission — its spacecraft (with TLE, APID, sim image, security keys), constellations (template + member list with auto-APID assignment), ground stations, and references to debris/external catalogues. JSON Schema validation up-front so malformed models are rejected at load time, not at runtime.
+- **Technical contract.**
+  - Top-level objects: `mission`, `spacecraft[]`, `constellations[]`, `ground_stations[]`, `debris_sources[]`.
+  - **Mission** carries an opaque `id` (URL-safe slug), human `name`, ownership/labels (forward-compat for multi-tenant Phase G).
+  - **Spacecraft** carries `id`, `apid` (1..2047), `tle: { norad_id, refresh: { source, interval } }` (extends PAL-104), `sim: { image, ports, env }`, `security: { hmac_key_env_var }` (forward-compat for PAL-004).
+  - **Constellation** carries `id`, `template`, `apid_base` (auto-assigned per member as `apid_base + member_index`), `members[]: { id, norad_id }`. Apid collision detection at validate time.
+  - **Ground station** matches the existing PAL-203 schema (`lat_deg`, `lon_deg`, `alt_m`); orchestrator references stations by id, doesn't redefine.
+  - **Debris source** references the PAL-005 debris-sim service: `{ id, source: celestrak_group, refresh: interval }`.
+  - JSON Schema lives at `palantir-orchestrator/src/main/resources/mission.schema.json`. Validated via `networknt/json-schema-validator` at orchestrator boot AND every `POST /missions`.
+  - Example mission committed at `examples/missions/iss-and-debris.yaml` for reference.
+- **Definition of done.** Schema rejects three failure modes with clear messages: (a) APID collision between two spacecraft in the same mission, (b) missing required field, (c) APID out of [1, 2047] range. A reference example loads cleanly. Unit tests cover the validator in isolation.
+- **Dependencies.** None (pure design + validation).
+
+### 0.1.2 PAL-003 — `palantir-core` parameterisation
+
+- **Objective.** Refactor the existing `palantir-core` Spring Boot service so its currently-hardcoded values (APID = 100, TLE source, target Yamcs UDP port, future spacecraft ID, future HMAC key) become environment-variable driven. Required so the orchestrator can spawn N copies that don't collide.
+- **Technical contract.**
+  - New env vars (with sensible defaults matching today's behaviour, so the existing single-spacecraft setup keeps working without orchestrator):
+    - `PALANTIR_APID` (default `100`)
+    - `PALANTIR_SPACECRAFT_ID` (default `1`)
+    - `PALANTIR_MISSION_ID` (default `1`)
+    - `PALANTIR_HMAC_KEY` (default unset → TC security disabled, see PAL-004)
+    - `PALANTIR_NORAD_ID` (default `25544` for ISS, used by PAL-104 refresh URL)
+    - `YAMCS_UDP_HOST`, `YAMCS_UDP_PORT` (already exist) — orchestrator sets these per spacecraft instance to route to the right Yamcs UDP TM port.
+    - `PALANTIR_UPLINK_PORT` (already exists as `palantir.uplink.port`) — orchestrator allocates a unique TC port per spacecraft.
+  - `CcsdsTelemetrySender` reads APID + SCID + Mission ID instead of hardcoding the constant `APID = 100`.
+  - `TleRefreshService` (PAL-104) reads NORAD ID into the CelesTrak URL template instead of hardcoding `CATNR=25544`.
+  - `UdpCommandReceiver` validates Spacecraft ID and Mission ID on every received packet (rejection logging only — full rejection logic lands in PAL-004).
+- **Definition of done.** `mvn test` green after refactor; running the existing single-instance `docker compose up` still produces ISS telemetry as before; setting `PALANTIR_APID=200 PALANTIR_NORAD_ID=43435` produces a different spacecraft tracking TESS without code changes.
+- **Dependencies.** PAL-001 (the env-var names match the schema's spacecraft fields).
+
+### 0.1.3 PAL-004 — Secured TC envelope (SCID + sequence counter + HMAC)
+
+- **Objective.** Wrap every TC datagram in a CCSDS-shaped envelope carrying Spacecraft ID, monotonic sequence counter, and HMAC-SHA256 authentication trailer. Receiver validates all three; mismatches are rejected and logged. Defense in depth above network routing.
+- **Technical contract.**
+  - **Wire layout** (28 bytes for a 1-byte opcode):
+
+    ```
+    [0-1]   Packet ID         Version(000) | Type(1=TC) | SecHdr(1) | APID(11)
+    [2-3]   Sequence Control  Group flags(11) | Sequence Count (14-bit)
+    [4-5]   Length             octets-of-PDF − 1
+    [6]     Spacecraft ID      uint8
+    [7]     Mission ID         uint8
+    [8-9]   Reserved           uint16 (zero, future Key ID byte)
+    [10-N]  Command bytes      (existing PING opcode etc.)
+    [N+1..N+16]  HMAC-SHA256 truncated to 16 bytes
+    ```
+
+  - **Yamcs side.** Custom command postprocessor (`org.yamcs.tctm.commandPostprocessorClassName`) constructs the envelope from the XTCE-serialized command bytes plus mission/spacecraft metadata from a per-link config. HMAC key passed via Yamcs instance env var. Standards anchor: CCSDS 232.0-B-4 *TC Space Data Link Protocol* + 355.0-B-2 *SDLS* (simplified — HMAC-SHA256 instead of CMAC, no Key ID).
+  - **Spacecraft side.** `UdpCommandReceiver` validates four checks in order: (a) packet ≥ 28 bytes, (b) Spacecraft ID + Mission ID match expected, (c) sequence counter strictly greater than last seen (per spacecraft), (d) HMAC-SHA256 over bytes 0..N matches trailer. Each failure logged with concrete reason; commands are rejected, not partially executed.
+  - **Key storage (PoC).** HMAC key per spacecraft, base64-encoded, supplied via `PALANTIR_HMAC_KEY` env var on the spacecraft side and the same env var on the matching Yamcs link. **Phase G upgrade path** (deferred): HashiCorp Vault for centralised key management with rotation. Documented in this ticket's notes; not built now.
+  - XTCE: new abstract `CCSDS_Tc_Packet_Base` mirroring `CCSDS_Tm_Packet_Base` so future commands inherit the security envelope without per-command boilerplate.
+- **Definition of done.** End-to-end smoke: PING from PAL-102 panel → Yamcs adds envelope → spacecraft validates HMAC → command accepted; same PING with HMAC tampered (one byte flipped) → spacecraft logs "HMAC mismatch" and rejects; replay of a previous PING (sequence counter not advanced) → "sequence counter regression" rejection.
+- **Dependencies.** PAL-003 (parameterised SCID/MID/key); knowledge of Yamcs custom postprocessor API.
+
+### 0.1.4 PAL-002 — `palantir-orchestrator/` skeleton
+
+- **Objective.** Spring Boot service that loads a mission YAML, validates it against the JSON Schema, then materialises it into running infrastructure: per-mission Yamcs container, per-spacecraft simulator container, network topology, port allocations. Exposes a small REST API for the same operations at runtime.
+- **Technical contract.**
+  - New Maven module `palantir-orchestrator/` (sibling of `palantir-core/`).
+  - REST endpoints:
+    - `POST /missions` — body = mission YAML; validates, materialises Yamcs + spacecraft sims; returns mission status
+    - `GET /missions/{id}` — current state
+    - `POST /missions/{id}/spacecraft` — add a spacecraft to an existing mission at runtime
+    - `DELETE /missions/{id}/spacecraft/{satId}` — remove
+    - `DELETE /missions/{id}` — full teardown (Yamcs container + all sims + volumes)
+    - `WebSocket /events` — emits state change events (`mission.created`, `spacecraft.added`, `pass.start`, etc.)
+  - **Per-mission Yamcs.** Orchestrator pulls a Yamcs Docker image, configures it via Yamcs `InstanceTemplate` (so each spacecraft inside the Yamcs is a Yamcs instance, not a hand-edited config file), allocates HTTP/UDP-TM/UDP-TC port triplets from a configurable range, mounts a per-mission named volume for the archive.
+  - **Per-spacecraft sim.** Orchestrator spawns one `palantir-core` container per spacecraft with the env vars from PAL-003 set, networked to the right mission's Yamcs.
+  - **Container API.** Docker Engine API (`com.github.docker-java`) for the PoC — Spring Boot service talks to the Docker socket. Phase G replaces with Kubernetes Operator.
+  - **Discovery.** Orchestrator maintains an in-memory `Map<MissionId, MissionState>` with Yamcs URL, sim container IDs, port allocations. Persisted to a JSON file (`/var/lib/palantir-orchestrator/state.json`) on every change so restarts don't lose state. Phase G replaces with a real database.
+- **Definition of done.** `POST /missions` with the example `iss-and-debris.yaml` produces: 1 Yamcs container running with 2 instances (ISS + a synthetic Starlink-shell satellite), 2 `palantir-core` containers each emitting their respective TM, a debris-sim container sourcing CelesTrak. PAL-101 HMI subscribes to either spacecraft's parameters by switching qualified namespace. `DELETE /missions/{id}` cleans up containers and volumes. WebSocket emits `mission.created` event.
+- **Dependencies.** PAL-001 (schema), PAL-003 (parameterised cores), PAL-004 (secured TC), PAL-005 (debris sim — only needed for the example, orchestrator works without).
+
+### 0.1.5 PAL-005 — Debris simulator service
+
+- **Objective.** New service that ingests the CelesTrak debris catalogue, propagates objects on demand via Orekit SGP4, and exposes a REST API that the orchestrator and (later) PAL-501 conjunction screener query for "position of object X at time T". Without this, conjunction screening is "ISS vs. nothing"; with it, "ISS vs. ~28 000 tracked objects".
+- **Technical contract.**
+  - New Maven module `palantir-debris-sim/` (sibling of `palantir-core/`).
+  - **Catalogue ingest.** Daily refresh from CelesTrak debris group: `https://celestrak.org/NORAD/elements/gp.php?GROUP=debris&FORMAT=tle`. Same `TleRefreshService` pattern as PAL-104 but bulk (parses ~28 000 TLEs into a memory map). On refresh, log catalogue size + median epoch.
+  - **Lazy propagation.** No always-on bulk propagator. REST endpoint `GET /objects/{noradId}/position?at=<ISO 8601>` triggers a one-shot SGP4 propagation, caches `(noradId, time-rounded-to-1-second) → position` in a small LRU cache. Cache TTL configurable; default 60 s.
+  - **Bulk endpoint** for conjunction screening: `POST /objects/positions` with body `{ noradIds: [...], at: <ISO> }` returns array of positions. Uses parallel propagation across cached Orekit `TLEPropagator` instances.
+  - **Standards anchor.** SGP4 propagation per Hoots/Roehrich 1980 (Vallado 2006 reference implementation). CelesTrak is a public catalogue mirror of Space-Track GP data; for higher-fidelity production use, Space-Track API (requires registration) is the commercial upgrade path.
+  - **Out of scope for this ticket** (deferred to future debris-related tickets, captured here so they don't get lost):
+    - Per-object covariance matrices
+    - Breakup event simulation (creating new fragments from a parent)
+    - Manoeuvre history modelling for active debris
+    - Atmospheric drag coefficient refinement (uses TLE-embedded B* only)
+- **Definition of done.** `POST /missions` with a debris source provisions the service; `GET /objects/12345/position?at=2026-05-02T12:00:00Z` returns coordinates within 100 ms; bulk endpoint with 100 NORAD IDs returns positions within 500 ms. Daily catalogue refresh logs object count > 25 000.
+- **Dependencies.** Palantir Core baseline (Orekit availability via shared JAR); orchestrator can use this service via PAL-002 once both land.
+
+---
+
 ## 1. Phase A — Operator HMI & Analytics Foundation *(start here)*
 
 **Why this is first.** The HMI and analytics tier are the only pieces that consume the baseline telemetry pipeline without requiring any new packet definitions. They validate that the Yamcs WebSocket and Archive APIs behave as advertised, produce visible deliverables for the first sprint review, and unblock downstream integration testing.
@@ -375,13 +476,20 @@ Items below are net-new relative to §0–§6 and specifically address the gap b
 ```
 Baseline (§0)
  │
- ├── PAL-101  (§1.1)  HMI ground track
- ├── PAL-201  (§1.2)  analytics pipeline     ║ parallel
- ├── PAL-102  (§1.3)  command panel          ║ parallel
- ├── PAL-202  (§1.4)  AOS/LOS report         ║ parallel
- ├── PAL-104  (§1.6)  TLE auto-refresh       ║ parallel (baseline enhancement)
- ├── PAL-105  (§1.7)  CCSDS Sec Header time  ║ parallel (baseline enhancement)
- └── PAL-203  (§1.5)  station registry       ◄── after PAL-202
+ ├── PAL-101  (§1.1)   HMI ground track
+ ├── PAL-201  (§1.2)   analytics pipeline     ║ parallel
+ ├── PAL-102  (§1.3)   command panel          ║ parallel
+ ├── PAL-202  (§1.4)   AOS/LOS report         ║ parallel
+ ├── PAL-104  (§1.6)   TLE auto-refresh       ║ parallel (baseline enhancement)
+ ├── PAL-105  (§1.7)   CCSDS Sec Header time  ║ parallel (baseline enhancement)
+ ├── PAL-203  (§1.5)   station registry       ◄── after PAL-202
+ │
+ │   Phase 0.1 — Mission Orchestration Platform (parallel platform tier)
+ ├── PAL-001  (§0.1.1) mission model schema
+ ├── PAL-003  (§0.1.2) palantir-core parameterisation  ◄── after PAL-001
+ ├── PAL-004  (§0.1.3) secured TC envelope             ◄── after PAL-003
+ ├── PAL-005  (§0.1.5) debris simulator service        ║ parallel with PAL-004
+ └── PAL-002  (§0.1.4) orchestrator skeleton           ◄── after PAL-001/003/004
        │
        ▼
  ├── PAL-301  (§2.1)  XTCE env payload  ◄── architectural gatekeeper
