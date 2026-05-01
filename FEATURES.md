@@ -142,6 +142,27 @@ The following capabilities are in `master` today and must not be regressed. All 
 - **Definition of done.** `POST /missions` with a debris source provisions the service; `GET /objects/12345/position?at=2026-05-02T12:00:00Z` returns coordinates within 100 ms; bulk endpoint with 100 NORAD IDs returns positions within 500 ms. Daily catalogue refresh logs object count > 25 000.
 - **Dependencies.** Palantir Core baseline (Orekit availability via shared JAR); orchestrator can use this service via PAL-002 once both land.
 
+### 0.1.6 PAL-006 — Conjunction Data Message (CDM) ingestion service
+
+- **Objective.** New service ingests CCSDS 508.0-B-1 Conjunction Data Messages from external screening sources, parses the 6×6 RTN covariance and hard-body radius per object, and exposes a REST API that PAL-501 queries when computing Monte Carlo Pc. Without CDMs, PAL-501 falls back to synthesised covariance per Rule 30 — usable but less realistic. CDM ingestion is the platform-tier piece that bridges PAL-005 catalogue ephemeris (object positions) to PAL-501 Pc computation (covariance + encounter metadata) — they are different inputs serving different consumers.
+- **Technical contract.**
+  - New Maven module `palantir-cdm-ingest/` (sibling of `palantir-core/`, `palantir-orchestrator/`, `palantir-debris-sim/`).
+  - **Primary source — Space-Track CDM API.** Free non-commercial registration. Service polls `/basicspacedata/query/class/cdm_public` (or equivalent) on a configurable cadence (default 4 h — operational SSN screenings publish multiple times daily). Credentials supplied via env vars `SPACETRACK_USER` / `SPACETRACK_PASSWORD`; service degrades gracefully to fallback when credentials are absent.
+  - **Fallback source — CelesTrak SOCRATES JSON.** Public, no auth. Provides summary close-approach data (miss distance, max Pc) without full 6×6 covariance. Used to populate event-level metadata when Space-Track is unavailable; signals "synthesised covariance required" to PAL-501 consumers.
+  - **Persistence.** Each ingested CDM stored as a JSON file under `/var/lib/palantir-cdm-ingest/<obj1>_<obj2>_<tca>.json`, indexed by `(object1_id, object2_id, tca_epoch)`. Old CDMs (TCA more than 7 days past) garbage-collected on a daily sweep.
+  - **REST API:**
+    - `GET /cdm/by-pair?obj1=<noradId>&obj2=<noradId>` — latest CDM for the pair, or 404 if none.
+    - `GET /cdm/recent?since=<ISO 8601>` — all CDMs ingested since a given timestamp.
+    - `GET /cdm/{cdmId}` — fetch a specific CDM by its server-assigned ID.
+  - **CCSDS field preservation.** 6×6 covariance in RTN frame as published; CCSDS field names (`OBJECT1`, `TCA`, `MISS_DISTANCE`, `CR_R`, `CT_R`, `CT_T`, …) preserved in the JSON wrapper so a future consumer can round-trip back to CCSDS-XML if needed.
+- **Out of scope (deferred to future tickets):**
+  - CCSDS-XML CDM serialisation for export to other ground systems.
+  - Auto-screening / alert generation from CDMs (CDM existence ≠ alert; that's PAL-501's job).
+  - Full ephemeris (state-vector tables) attached to CDMs — Space-Track returns this; we discard it to keep storage small.
+  - Multi-source de-duplication (operator may supply both Space-Track and ESA SST credentials; CDMs from each will be stored independently).
+- **Definition of done.** Service ingests test-fixture CDMs (committed under `palantir-cdm-ingest/src/test/resources/cdm-fixtures/`); REST endpoint returns parsed 6×6 covariance with element-by-element equality to the fixture; `GET /cdm/by-pair` returns latest CDM in < 50 ms; daily refresh against live Space-Track logs ingested CDM count and credential health. PAL-501 with CDM mode enabled successfully consumes a CDM from the service in an end-to-end Pc computation.
+- **Dependencies.** Independent service; PAL-501 adopts when both land.
+
 ---
 
 ## 1. Phase A — Operator HMI & Analytics Foundation *(start here)*
@@ -360,7 +381,11 @@ The following capabilities are in `master` today and must not be regressed. All 
 - **Objective.** Standalone Orekit 12.2 batch application (`hpc/conjunction-assessment/`) that screens the Palantir spacecraft against the CelesTrak GP catalog and computes Time of Closest Approach (TCA) and Probability of Collision (Pc) for each close approach.
 - **Catalog ingestion.** CelesTrak GP API endpoint: `https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=…`. **Prefer OMM (XML)** over TLE — CelesTrak has announced that NORAD 5-digit catalog numbers will exhaust around **2026-07-20**, after which new objects receive 6-digit catalog numbers that cannot be represented in the legacy TLE format. Orekit 12.2 ingests OMM via `OmmParser`; for 5-digit-only legacy data, `TLEParser` remains usable. The CLI must accept `--catalog-format={omm,tle}` with OMM as the default.
 - **Screening stage.** For each debris object, propagate both spacecraft and debris with `TLEPropagator.selectExtrapolator(tle)` or an SGP4-based `SgpPropagator` for OMM, over a 7-day prediction window at 60-second steps. Flag any pair where min Cartesian distance (in the TEME frame, converted consistently) falls below 10 km. 60-second sampling will miss encounters faster than ≈ 150 m/s closure × 60 s = 9 km in half a step — that is exactly why the flagged pairs are refined with Monte Carlo in the next stage; the screening cadence is deliberately coarse.
-- **Monte Carlo Pc estimation.** For each flagged pair, draw `N` (default 10 000) sample state vectors from a diagonal covariance (100 m 1σ position, 0.01 m/s 1σ velocity). Propagate each sample pair to its TCA. `Pc = (# samples with miss distance < R_HBR) / N` where `R_HBR = 10 m` is the combined hard-body radius (operator-configurable). Seed the RNG for reproducibility.
+- **Covariance source (per Rule 30).**
+  - **Primary:** query the **PAL-006 CDM ingestion service** for the latest CCSDS 508.0-B-1 Conjunction Data Message matching the `(palantir, debris)` object pair. Use the 6×6 RTN covariance directly from the CDM, plus the per-object hard-body radius from the CDM where present.
+  - **Fallback (no CDM available):** synthesise covariance per Rule 30 — RTN frame, 1σ ratio `R : C : T = 1 : 10 : 100`. Default magnitudes for a TLE less than 1 day old: `σ_R = 50 m`, `σ_C = 500 m`, `σ_T = 5 000 m`. Scale linearly with TLE epoch age up to `10×` at 14+ days old (a stale TLE has correspondingly larger uncertainty in the in-track direction). Velocity covariance derived from position via the `dv ≈ (n / 2) · σ_pos_track` heuristic where `n` is mean motion (rad/s).
+  - **Frame transform:** covariance is rotated from RTN to ECI for sampling using the spacecraft's RTN→ECI rotation matrix at TCA, per Rule 30's frame-bound clause (`Σ_ECI = R · Σ_RTN · Rᵀ`).
+- **Monte Carlo Pc estimation.** For each flagged pair, draw `N` (default 10 000) sample state vectors from the ECI-rotated 6×6 covariance. Propagate each sample pair to its TCA. `Pc = (# samples with miss distance < R_HBR) / N` where `R_HBR` is the combined hard-body radius (from CDM if available, default `10 m` otherwise; operator-configurable). Seed the RNG per Rule 27 for reproducibility; persist the seed in `conjunction_report.json` for audit.
 - **Parallelism.** Use Java 21 Virtual Threads (`Executors.newVirtualThreadPerTaskExecutor()`) across pairs — propagation is CPU-bound, not I/O-bound, but the virtual-thread model still simplifies the fan-out without measurable penalty for this scale.
 - **Local validation profile (mandatory before HPC).** `--catalog-limit=500 --prediction-hours=24 --mc-samples=1000` must complete in < 10 minutes on a developer workstation (4 cores, 16 GB RAM) and produce a reproducible `conjunction_report.json`. **No Slurm access is granted until the local profile is green.**
 - **Yamcs integration.** Top-10 conjunctions (by `Pc`) posted as events via `POST /api/archive/palantir/events` with severity mapped from `Pc`: `WARNING` for `1e-6 ≤ Pc < 1e-4`, `CRITICAL` for `Pc ≥ 1e-4`. The 1e-4 threshold is the industry-standard COLA "red" trigger used by NASA CARA and the ESA Space Debris Office.
@@ -489,6 +514,7 @@ Baseline (§0)
  ├── PAL-003  (§0.1.2) palantir-core parameterisation  ◄── after PAL-001
  ├── PAL-004  (§0.1.3) secured TC envelope             ◄── after PAL-003
  ├── PAL-005  (§0.1.5) debris simulator service        ║ parallel with PAL-004
+ ├── PAL-006  (§0.1.6) CDM ingestion service           ║ parallel; consumed by PAL-501
  └── PAL-002  (§0.1.4) orchestrator skeleton           ◄── after PAL-001/003/004
        │
        ▼
@@ -536,6 +562,7 @@ The following technical items have been **corrected** in this revision relative 
 | 8 | "Yamcs health check implies processor ready" (old PAL-403) | `GET /api/` returns 200 before the realtime processor has subscribed to `tm_realtime`. | §3.3 PAL-403 adds the secondary `"state": "RUNNING"` readiness poll. |
 | 9 | "AOS/LOS uses elevation = `arctan((cos γ − R/(R+h)) / sin γ)`" (old PAL-202) | Correct, but `arctan` loses sign information; swapped to `atan2` form to handle the full range cleanly. | §1.4 PAL-202 uses `atan2( cos γ − R/(R+h), sin γ )`. |
 | 10 | "Post-FIRE_THRUSTER propagation remains on SGP4 TLE" (implicit in old docs) | TLE mean elements no longer represent the orbit after an impulsive manoeuvre; the propagator must switch to a numerical model. | §4.3 Phase 3b prescribes the post-manoeuvre handoff to a `NumericalPropagator` with point-mass + J₂. |
+| 11 | "Diagonal covariance (100 m 1σ position, 0.01 m/s 1σ velocity)" (old PAL-501) | Isotropic-across-axes covariance in an unspecified frame violates Rule 30 (Astrodynamic Covariance) — orbital uncertainty must be modelled in the RTN frame with `R : C : T ≈ 1 : 10 : 100` ratio. The original spec also has no path to consume real CCSDS 508.0-B-1 CDMs. | §4.1 PAL-501 covariance source rewritten: primary path consumes CDMs via §0.1.6 PAL-006 CDM ingestion service; fallback synthesises covariance per Rule 30 (RTN frame, 1:10:100 ratio, scaled with TLE epoch age). Frame-bound rotation `Σ_ECI = R · Σ_RTN · Rᵀ` applied at TCA. |
 
 Retired drafts are preserved under `docs/archive/` and should be treated as historical context only. Do not cite them in new work.
 
